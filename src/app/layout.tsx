@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Newsreader, Public_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,19 @@ const publicSans = Public_Sans({
 export const metadata: Metadata = {
   title: "Recipe Ledger",
   description: "Your recipes, priced.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Recipe Ledger",
+  },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#B4472C",
 };
 
 export default function RootLayout({
