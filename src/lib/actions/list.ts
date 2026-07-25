@@ -159,6 +159,13 @@ export async function removeListItem(itemId: string) {
 export async function addManualListItem(label: string, qtyCanonical?: number, productOptionId?: string) {
   const userId = await requireUser();
 
+  if (productOptionId) {
+    const option = await prisma.productOption.findFirst({
+      where: { id: productOptionId, catalogIngredient: { userId } },
+    });
+    if (!option) throw new Error("Product option not found");
+  }
+
   const item = await prisma.shoppingListItem.create({
     data: {
       userId,

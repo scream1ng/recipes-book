@@ -257,6 +257,7 @@ model ShoppingListContribution {
   recipe Recipe?          @relation(fields: [recipeId], references: [id], onDelete: SetNull)
 
   @@index([itemId])
+  @@index([recipeId])
 }
 
 // ---------- Coles cache ----------

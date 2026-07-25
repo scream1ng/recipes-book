@@ -50,6 +50,7 @@ export async function upsertProductOption(input: UpsertProductOptionInput) {
     where: { id: input.catalogIngredientId, userId },
   });
   if (!catalogIngredient) throw new Error("Catalog ingredient not found");
+  if (input.packQty <= 0) throw new Error("packQty must be positive");
 
   const source: ProductOptionSource = "MANUAL";
 
@@ -202,6 +203,7 @@ export async function addColesProductAsOption(input: AddColesProductInput) {
     where: { id: input.catalogIngredientId, userId },
   });
   if (!catalogIngredient) throw new Error("Catalog ingredient not found");
+  if (input.packQty <= 0) throw new Error("packQty must be positive");
 
   const option = await prisma.productOption.create({
     data: {

@@ -143,8 +143,23 @@ export interface RecipeDraft {
   ingredients: RecipeIngredientDraft[];
 }
 
+/** Verifies every provided catalogIngredientId belongs to userId; throws otherwise. */
+async function assertOwnedCatalogIngredientIds(userId: string, ingredients: RecipeIngredientDraft[]) {
+  const ids = [...new Set(ingredients.map((ing) => ing.catalogIngredientId).filter((id): id is string => !!id))];
+  if (ids.length === 0) return;
+
+  const owned = await prisma.catalogIngredient.findMany({
+    where: { id: { in: ids }, userId },
+    select: { id: true },
+  });
+  if (owned.length !== ids.length) {
+    throw new Error("One or more ingredients reference a catalog item that doesn't belong to you");
+  }
+}
+
 export async function createRecipe(draft: RecipeDraft) {
   const userId = await requireUser();
+  await assertOwnedCatalogIngredientIds(userId, draft.ingredients);
 
   const recipe = await prisma.recipe.create({
     data: {
@@ -194,6 +209,7 @@ export async function updateRecipe(id: string, input: UpdateRecipeInput) {
   const userId = await requireUser();
   const existing = await prisma.recipe.findFirst({ where: { id, userId } });
   if (!existing) throw new Error("Recipe not found");
+  if (input.ingredients) await assertOwnedCatalogIngredientIds(userId, input.ingredients);
 
   await prisma.$transaction(async (tx) => {
     await tx.recipe.update({
@@ -235,8 +251,35 @@ export async function deleteRecipe(id: string) {
   const existing = await prisma.recipe.findFirst({ where: { id, userId } });
   if (!existing) throw new Error("Recipe not found");
 
-  await prisma.recipe.delete({ where: { id } });
+  await prisma.$transaction(async (tx) => {
+    const contributions = await tx.shoppingListContribution.findMany({
+      where: { recipeId: id },
+    });
+
+    for (const contribution of contributions) {
+      await tx.shoppingListContribution.delete({ where: { id: contribution.id } });
+
+      const remaining = await tx.shoppingListContribution.aggregate({
+        where: { itemId: contribution.itemId },
+        _sum: { qtyCanonical: true },
+      });
+
+      const remainingQty = remaining._sum.qtyCanonical ?? 0;
+      if (remainingQty <= 0) {
+        await tx.shoppingListItem.delete({ where: { id: contribution.itemId } }).catch(() => {});
+      } else {
+        await tx.shoppingListItem.update({
+          where: { id: contribution.itemId },
+          data: { qtyCanonical: remainingQty },
+        });
+      }
+    }
+
+    await tx.recipe.delete({ where: { id } });
+  });
+
   revalidatePath("/recipes");
+  revalidatePath("/list");
 }
 
 // ---------- getCostBreakdown ----------

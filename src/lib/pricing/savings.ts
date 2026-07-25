@@ -28,6 +28,7 @@ export function findCheaperAlternative(
   let bestUnitPrice = currentUnitPrice;
 
   for (const candidate of candidates) {
+    if (candidate.packQty <= 0) continue;
     const price = unitPriceCents(candidate);
     if (price < bestUnitPrice) {
       best = candidate;

@@ -64,7 +64,7 @@ export function SwapSheet({
   }
 
   function selectLive(product: LiveColesProduct) {
-    if (product.priceCents == null || product.packQty == null) return;
+    if (product.priceCents == null || product.packQty == null || product.packQty <= 0) return;
     startTransition(async () => {
       await addColesProductAsOption({
         catalogIngredientId,

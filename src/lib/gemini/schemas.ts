@@ -38,7 +38,7 @@ export type ParsedIngredientLine = z.infer<typeof parsedIngredientLineSchema>;
 export const colesProductSchema = z.object({
   name: z.string(),
   packLabel: z.string(),
-  packQty: z.number().nullable(),
+  packQty: z.number().positive().nullable(),
   priceCents: z.number().int().nullable(),
   productUrl: z.string().nullable(),
   productId: z.string().nullable(),

@@ -27,7 +27,14 @@ export async function GET(request: Request) {
     }),
   ]);
 
-  const coles = cached && cached.expiresAt > new Date() ? JSON.parse(cached.resultsJson) : [];
+  let coles: unknown[] = [];
+  if (cached && cached.expiresAt > new Date()) {
+    try {
+      coles = JSON.parse(cached.resultsJson);
+    } catch {
+      coles = [];
+    }
+  }
 
   return NextResponse.json({ catalog, coles });
 }

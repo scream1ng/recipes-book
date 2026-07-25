@@ -22,6 +22,13 @@ describe("cost", () => {
   it("computes unit price", () => {
     expect(unitPriceCents({ packQty: 500, priceCents: 400 })).toBeCloseTo(0.8);
   });
+
+  it("guards zero/negative packQty as a last-resort defense", () => {
+    expect(unitPriceCents({ packQty: 0, priceCents: 400 })).toBe(0);
+    expect(unitPriceCents({ packQty: -5, priceCents: 400 })).toBe(0);
+    expect(lineCostCents(250, { packQty: 0, priceCents: 400 })).toBe(0);
+    expect(lineCostCents(250, { packQty: -5, priceCents: 400 })).toBe(0);
+  });
 });
 
 describe("packs", () => {
@@ -63,6 +70,15 @@ describe("savings", () => {
   it("returns null when nothing is cheaper", () => {
     const current = { packQty: 500, priceCents: 300 };
     const candidates = [{ id: "a", packQty: 500, priceCents: 400 }];
+    expect(findCheaperAlternative(current, candidates, 250)).toBeNull();
+  });
+
+  it("excludes candidates with zero or negative packQty instead of treating them as free", () => {
+    const current = { packQty: 500, priceCents: 500 }; // $1/100g
+    const candidates = [
+      { id: "zero", packQty: 0, priceCents: 100 },
+      { id: "negative", packQty: -1, priceCents: 100 },
+    ];
     expect(findCheaperAlternative(current, candidates, 250)).toBeNull();
   });
 });

@@ -62,6 +62,15 @@ export function canonicalizeUnitToken(raw: string): string {
   return UNIT_ALIASES[cleaned] ?? cleaned;
 }
 
+/** Maps a raw unit string (e.g. "g", "ml", "cup") to its canonical dimension family. */
+export function detectCanonicalUnitFromRawUnit(rawUnit: string | null | undefined): CanonicalUnit {
+  if (!rawUnit) return "COUNT";
+  const unit = canonicalizeUnitToken(rawUnit);
+  if (isMassUnit(unit)) return "MASS_G";
+  if (isVolumeUnit(unit)) return "VOLUME_ML";
+  return "COUNT";
+}
+
 export interface NormalizeResult {
   qtyCanonical: number | null;
   /** Set when the unit is recognised but a required ingredient factor is missing. */

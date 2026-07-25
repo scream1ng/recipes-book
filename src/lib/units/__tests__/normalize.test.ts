@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeToCanonical, canonicalizeUnitToken } from "../normalize";
+import { normalizeToCanonical, canonicalizeUnitToken, detectCanonicalUnitFromRawUnit } from "../normalize";
 
 describe("canonicalizeUnitToken", () => {
   it("maps aliases and plurals", () => {
@@ -40,5 +40,24 @@ describe("normalizeToCanonical", () => {
 
   it("passes through COUNT canonical unit unchanged", () => {
     expect(normalizeToCanonical(4, "whole", "COUNT").qtyCanonical).toBe(4);
+  });
+});
+
+describe("detectCanonicalUnitFromRawUnit", () => {
+  it("maps mass units to MASS_G", () => {
+    expect(detectCanonicalUnitFromRawUnit("g")).toBe("MASS_G");
+    expect(detectCanonicalUnitFromRawUnit("kg")).toBe("MASS_G");
+  });
+
+  it("maps volume units to VOLUME_ML", () => {
+    expect(detectCanonicalUnitFromRawUnit("ml")).toBe("VOLUME_ML");
+    expect(detectCanonicalUnitFromRawUnit("cup")).toBe("VOLUME_ML");
+    expect(detectCanonicalUnitFromRawUnit("tbsp")).toBe("VOLUME_ML");
+  });
+
+  it("falls back to COUNT for count units, unknown units, or null", () => {
+    expect(detectCanonicalUnitFromRawUnit("whole")).toBe("COUNT");
+    expect(detectCanonicalUnitFromRawUnit("banana")).toBe("COUNT");
+    expect(detectCanonicalUnitFromRawUnit(null)).toBe("COUNT");
   });
 });

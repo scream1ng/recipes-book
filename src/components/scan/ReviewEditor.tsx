@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveScannedRecipe, type RecipeIngredientDraft } from "@/lib/actions/recipes";
 import { findOrCreateCatalogIngredient } from "@/lib/actions/catalog";
+import { normalizeToCanonical, detectCanonicalUnitFromRawUnit } from "@/lib/units/normalize";
 
 interface ParsedLine {
   rawText: string;
@@ -48,7 +49,15 @@ export function ReviewEditor() {
     setDraft((prev) => {
       if (!prev) return prev;
       const lines = [...prev.lines];
-      lines[index] = { ...lines[index], ...patch };
+      const updated = { ...lines[index], ...patch };
+      if ("amount" in patch || "unit" in patch) {
+        const canonicalUnit = detectCanonicalUnitFromRawUnit(updated.unit);
+        updated.qtyCanonical =
+          updated.amount != null && updated.unit
+            ? normalizeToCanonical(updated.amount, updated.unit, canonicalUnit).qtyCanonical
+            : null;
+      }
+      lines[index] = updated;
       return { ...prev, lines };
     });
   }
@@ -66,7 +75,7 @@ export function ReviewEditor() {
           const created = await findOrCreateCatalogIngredient({
             name: line.name,
             category: "OTHER",
-            canonicalUnit: line.qtyCanonical != null ? "MASS_G" : "COUNT",
+            canonicalUnit: detectCanonicalUnitFromRawUnit(line.unit),
           });
           catalogIngredientId = created.id;
         }
