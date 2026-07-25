@@ -4,8 +4,7 @@ import type { ZodType } from "zod";
 import { prisma } from "@/lib/db";
 import type { GeminiUsageKind } from "@/generated/prisma";
 
-const PRIMARY_MODEL = "gemini-3.6-flash";
-const FALLBACK_MODEL = "gemini-3.5-flash-lite";
+const MODEL_CHAIN = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"] as const;
 const TIMEOUT_MS = 30_000;
 
 export class GeminiNotConfiguredError extends Error {
@@ -90,22 +89,17 @@ function isRetryableError(err: unknown): boolean {
 }
 
 /**
- * Calls Gemini with the primary model, falling back to a lighter model on
- * 429/5xx/timeout/schema-validation-failure, validates the JSON response
+ * Calls Gemini through the model chain (primary, then progressively
+ * lighter fallbacks) on 429/5xx/timeout/schema-validation-failure, validates the JSON response
  * against `schema`, and logs the attempt to GeminiUsageLog. Throws on total
  * failure (both models exhausted).
  */
 export async function generateJson<T>(params: GenerateJsonParams<T>): Promise<T> {
   const { userId, kind, systemPrompt, prompt, image, schema } = params;
 
-  const attempts: Array<{ model: string }> = [
-    { model: PRIMARY_MODEL },
-    { model: FALLBACK_MODEL },
-  ];
-
   let lastError: unknown = null;
 
-  for (const { model } of attempts) {
+  for (const model of MODEL_CHAIN) {
     try {
       const raw = await callModel(model, systemPrompt, prompt, image);
       const parsed = JSON.parse(extractJson(raw));

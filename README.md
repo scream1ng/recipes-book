@@ -88,8 +88,8 @@ code paths are implemented but **unverified against the real services**:
 - **Gemini calls** (`src/lib/gemini/client.ts` and its two callers,
   `src/lib/scrape/coles.ts` for HTML→product parsing and
   `src/app/api/scan/parse/route.ts` for photo→ingredients parsing). The
-  model-fallback logic (primary `gemini-3.6-flash` → fallback
-  `gemini-3.5-flash-lite` on 429/5xx/timeout/schema-validation-failure),
+  model-fallback logic (`gemini-3.6-flash` → `gemini-3.5-flash` →
+  `gemini-3.1-flash-lite` on 429/5xx/timeout/schema-validation-failure),
   JSON-schema validation via Zod, and usage logging to `GeminiUsageLog` are
   all wired up, but the actual prompt→response shape has not been exercised
   against a real API key.
