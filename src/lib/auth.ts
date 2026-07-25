@@ -12,6 +12,9 @@ const hasGoogleCreds = Boolean(
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  // Railway (and most non-Vercel hosts) sit behind a reverse proxy, so
+  // Auth.js needs explicit permission to trust the forwarded host header.
+  trustHost: true,
   providers: [
     Credentials({
       credentials: {
