@@ -1,0 +1,65 @@
+"use client";
+
+import { useActionState } from "react";
+import Link from "next/link";
+import { signUpAction, type AuthFormState } from "@/lib/actions/auth";
+
+const initialState: AuthFormState = {};
+
+export function SignUpForm() {
+  const [state, formAction, isPending] = useActionState(signUpAction, initialState);
+
+  return (
+    <form action={formAction} className="flex w-full max-w-sm flex-col gap-3 text-left">
+      <label className="flex flex-col gap-1 text-sm">
+        Email
+        <input
+          type="email"
+          name="email"
+          required
+          autoComplete="email"
+          className="rounded-lg border border-(--color-border) px-3 py-2"
+        />
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        Password
+        <input
+          type="password"
+          name="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          className="rounded-lg border border-(--color-border) px-3 py-2"
+        />
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        Confirm password
+        <input
+          type="password"
+          name="confirmPassword"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          className="rounded-lg border border-(--color-border) px-3 py-2"
+        />
+      </label>
+
+      {state.error && <p className="text-sm text-(--color-accent-dark)">{state.error}</p>}
+
+      <button
+        type="submit"
+        disabled={isPending}
+        className="mt-1 rounded-full bg-(--color-accent) px-6 py-3 font-medium text-white shadow-sm hover:bg-(--color-accent-dark) disabled:opacity-60"
+      >
+        {isPending ? "Creating account…" : "Create account"}
+      </button>
+
+      <p className="text-center text-sm text-(--color-ink-muted)">
+        Already have an account?{" "}
+        <Link href="/signin" className="font-medium text-(--color-accent-dark)">
+          Sign in
+        </Link>
+      </p>
+    </form>
+  );
+}

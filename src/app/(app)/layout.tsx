@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
-import { auth, authConfigured } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { BottomNav } from "@/components/ui/BottomNav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  if (!authConfigured) redirect("/signin");
   const session = await auth();
   if (!session?.user) redirect("/signin");
 

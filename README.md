@@ -1,14 +1,15 @@
 # Recipe Ledger
 
 A personal recipe book + grocery cost calculator (AU, bakery-focused). Single
-user per account (Google sign-in), multi-device sync via Postgres. Scan a
-recipe photo or enter one manually, price it against Coles (scraped) and
-Woolworths (manual entry), and keep one running shopping list.
+user per account (email+password sign-in), multi-device sync via Postgres.
+Scan a recipe photo or enter one manually, price it against Coles (scraped)
+and Woolworths (manual entry), and keep one running shopping list.
 
 ## Stack
 
 Next.js App Router, TypeScript, Tailwind v4, Prisma + Postgres, Auth.js
-(Google provider), Gemini (`@google/genai`) for recipe-photo parsing and
+(Credentials provider, email+password; Google OAuth can be added as an
+extra sign-in option), Gemini (`@google/genai`) for recipe-photo parsing and
 Coles HTML parsing.
 
 ## Local setup
@@ -52,9 +53,10 @@ Coles HTML parsing.
    npm run dev
    ```
 
-   Open http://localhost:3000. Without `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`
-   configured, the app shows a "Google sign-in isn't configured yet" state on
-   `/signin` instead of crashing.
+   Open http://localhost:3000 and create an account at `/signup` (email +
+   password, 8+ characters). If `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are
+   also set, a "Sign in with Google" button appears on `/signin` as an
+   additional option — it's entirely optional.
 
 6. **Run tests**
 
@@ -73,10 +75,10 @@ See `.env.example` for the full list with comments. Summary:
 | Variable | Required for | Notes |
 |---|---|---|
 | `DATABASE_URL` | everything | Postgres connection string |
-| `GEMINI_API_KEY` | `/scan` recipe parsing, Coles search parsing | Get one at https://aistudio.google.com/apikey |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in | https://console.cloud.google.com/apis/credentials, redirect URI `http://localhost:3000/api/auth/callback/google` |
-| `AUTH_SECRET` | Auth.js session encryption | `npx auth secret` or `openssl rand -base64 32` |
+| `AUTH_SECRET` | Auth.js session signing (used by email+password sessions too) | `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | Auth.js | `http://localhost:3000` locally |
+| `GEMINI_API_KEY` | `/scan` recipe parsing, Coles search parsing | Get one at https://aistudio.google.com/apikey |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional Google sign-in, in addition to email+password | https://console.cloud.google.com/apis/credentials, redirect URI `http://localhost:3000/api/auth/callback/google` |
 
 ## What's stubbed / can't be live-tested here
 
@@ -98,8 +100,10 @@ code paths are implemented but **unverified against the real services**:
   page shape has drifted, the Gemini prompt in
   `src/lib/gemini/prompts/coles-html-parse.ts` may need tweaking.
 - **Google OAuth**: the Auth.js Google provider + Prisma adapter are wired
-  correctly per the standard pattern, but the full sign-in redirect flow
-  needs a real Google Cloud OAuth client to test end-to-end.
+  correctly per the standard pattern as an optional additional sign-in
+  method, but the full sign-in redirect flow needs a real Google Cloud OAuth
+  client to test end-to-end. Email+password (the default, always-on auth
+  method) is fully implemented and tested against the local database.
 
 Everything else — schema, units/pricing math (unit-tested), server actions,
 API routes, and all 8 screens — is real, working code against the local
@@ -132,7 +136,8 @@ Postgres database, not mock data.
 ```
 prisma/schema.prisma       Full data model (Auth.js + app tables)
 docker-compose.yml         Local Postgres for dev
-src/app/(auth)/signin      Google sign-in
+src/app/(auth)/signin      Email+password sign-in (+ optional Google button)
+src/app/(auth)/signup      Email+password account creation
 src/app/(app)/...          Recipes, Scan, List, Settings screens
 src/app/api/...            Coles search, swap, scan parse, catalog suggest, auth
 src/components/...         UI split by feature (recipe, scan, list, ui)
