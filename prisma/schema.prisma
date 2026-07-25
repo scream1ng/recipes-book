@@ -1,0 +1,292 @@
+// Prisma schema for Recipe Ledger
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Auth.js models ----------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  accounts Account[]
+  sessions Session[]
+
+  settings           UserSettings?
+  catalogIngredients CatalogIngredient[]
+  recipes            Recipe[]
+  shoppingListItems  ShoppingListItem[]
+  geminiUsageLogs    GeminiUsageLog[]
+
+  createdAt DateTime @default(now())
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------- App settings ----------
+
+enum StorePreference {
+  COLES
+  WOOLWORTHS
+  CHEAPEST_OF_BOTH
+}
+
+model UserSettings {
+  id               String          @id @default(cuid())
+  userId           String          @unique
+  storePreference  StorePreference @default(CHEAPEST_OF_BOTH)
+  showUnitPrices   Boolean         @default(true)
+  warnStalePrices  Boolean         @default(true)
+  stalePriceHours  Int             @default(48)
+  roundUpPartPacks Boolean         @default(true)
+  keepOffline      Boolean         @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------- Catalog ----------
+
+enum IngredientCategory {
+  MEAT_POULTRY
+  PRODUCE
+  PANTRY
+  DAIRY_EGGS
+  FROZEN
+  BAKERY
+  OTHER
+}
+
+enum CanonicalUnit {
+  MASS_G
+  VOLUME_ML
+  COUNT
+}
+
+model CatalogIngredient {
+  id                      String             @id @default(cuid())
+  userId                  String
+  name                    String
+  normalizedName          String
+  category                IngredientCategory @default(OTHER)
+  canonicalUnit           CanonicalUnit
+  gramsPerCount           Float?
+  mlPerCount              Float?
+  gramsPerMl              Float?
+  gramsPerBunch           Float?
+  isPantryStaple          Boolean            @default(false)
+  selectedProductOptionId String?            @unique
+
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selectedProductOption ProductOption?     @relation("SelectedProductOption", fields: [selectedProductOptionId], references: [id])
+  productOptions        ProductOption[]    @relation("CatalogProductOptions")
+  recipeIngredients     RecipeIngredient[]
+  shoppingListItems     ShoppingListItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, normalizedName])
+  @@index([userId])
+}
+
+enum Store {
+  COLES
+  WOOLWORTHS
+}
+
+enum ProductOptionSource {
+  COLES_SCRAPE
+  MANUAL
+}
+
+model ProductOption {
+  id                  String              @id @default(cuid())
+  catalogIngredientId String
+  store               Store
+  productName         String
+  packLabel           String
+  packQty             Float
+  priceCents          Int
+  source              ProductOptionSource
+  sourceUrl           String?
+  colesProductId      String?
+  priceUpdatedAt      DateTime            @default(now())
+  lastRefreshError    String?
+  isArchived          Boolean             @default(false)
+
+  catalogIngredient CatalogIngredient  @relation("CatalogProductOptions", fields: [catalogIngredientId], references: [id], onDelete: Cascade)
+  selectedByCatalog CatalogIngredient? @relation("SelectedProductOption")
+  priceSnapshots    PriceSnapshot[]
+  shoppingListItems ShoppingListItem[]
+
+  @@index([catalogIngredientId])
+}
+
+model PriceSnapshot {
+  id              String   @id @default(cuid())
+  productOptionId String
+  priceCents      Int
+  observedAt      DateTime @default(now())
+
+  productOption ProductOption @relation(fields: [productOptionId], references: [id], onDelete: Cascade)
+
+  @@index([productOptionId])
+}
+
+// ---------- Recipes ----------
+
+enum RecipeSourceType {
+  SCAN
+  MANUAL
+}
+
+model Recipe {
+  id         String           @id @default(cuid())
+  userId     String
+  name       String
+  tag        String?
+  minutes    Int?
+  baseServes Int              @default(4)
+  sourceType RecipeSourceType
+
+  user              User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ingredients       RecipeIngredient[]
+  listContributions ShoppingListContribution[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model RecipeIngredient {
+  id                  String  @id @default(cuid())
+  recipeId            String
+  catalogIngredientId String?
+  sortOrder           Int
+  rawText             String?
+  rawAmount           Float?
+  rawUnit             String?
+  displayName         String
+  qtyCanonical        Float?
+  needsReview         Boolean @default(false)
+  reviewNote          String?
+  excludeFromCost     Boolean @default(false)
+
+  recipe            Recipe             @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  catalogIngredient CatalogIngredient? @relation(fields: [catalogIngredientId], references: [id])
+
+  @@index([recipeId])
+}
+
+// ---------- Shopping list ----------
+
+model ShoppingListItem {
+  id                  String   @id @default(cuid())
+  userId              String
+  catalogIngredientId String?
+  manualLabel         String?
+  qtyCanonical        Float?
+  productOptionId     String?
+  isChecked           Boolean  @default(false)
+  addedAt             DateTime @default(now())
+
+  user              User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  catalogIngredient CatalogIngredient?         @relation(fields: [catalogIngredientId], references: [id])
+  productOption     ProductOption?             @relation(fields: [productOptionId], references: [id])
+  contributions     ShoppingListContribution[]
+
+  @@unique([userId, catalogIngredientId])
+  @@index([userId])
+}
+
+model ShoppingListContribution {
+  id           String  @id @default(cuid())
+  itemId       String
+  recipeId     String?
+  recipeName   String
+  servesUsed   Int
+  qtyCanonical Float
+
+  item   ShoppingListItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  recipe Recipe?          @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  @@index([itemId])
+}
+
+// ---------- Coles cache ----------
+
+model ColesSearchCache {
+  id          String   @id @default(cuid())
+  queryKey    String   @unique
+  resultsJson String
+  rawHtmlHash String?
+  fetchedAt   DateTime @default(now())
+  expiresAt   DateTime
+}
+
+// ---------- Gemini usage ----------
+
+enum GeminiUsageKind {
+  RECIPE_PARSE
+  COLES_HTML_PARSE
+}
+
+model GeminiUsageLog {
+  id           String          @id @default(cuid())
+  userId       String
+  kind         GeminiUsageKind
+  model        String
+  inputTokens  Int?
+  outputTokens Int?
+  ok           Boolean
+  createdAt    DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
