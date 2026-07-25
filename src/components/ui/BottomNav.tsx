@@ -2,20 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Icon, type IconName } from "@/components/ui/Icon";
 
-const TABS = [
-  { href: "/recipes", label: "Recipes", icon: "\u{1F4D6}" },
-  { href: "/scan", label: "Scan", icon: "\u{1F4F7}" },
-  { href: "/list", label: "List", icon: "\u{1F6D2}" },
-  { href: "/settings", label: "Settings", icon: "\u{2699}\u{FE0F}" },
+const TABS: { href: string; label: string; icon: IconName }[] = [
+  { href: "/recipes", label: "Recipes", icon: "recipes" },
+  { href: "/scan", label: "Scan", icon: "scan" },
+  { href: "/list", label: "List", icon: "list" },
+  { href: "/settings", label: "Settings", icon: "settings" },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="sticky bottom-0 z-10 border-t border-(--color-border) bg-(--color-surface)/95 backdrop-blur">
-      <ul className="mx-auto flex max-w-lg justify-around py-2">
+    <nav className="sticky bottom-0 z-20 h-16 border-t border-(--color-border) bg-(--color-surface)/95 backdrop-blur">
+      <ul className="mx-auto flex h-full max-w-lg items-center justify-around">
         {TABS.map((tab) => {
           const active = pathname?.startsWith(tab.href);
           return (
@@ -26,9 +27,7 @@ export function BottomNav() {
                   active ? "text-(--color-accent)" : "text-(--color-ink-muted)"
                 }`}
               >
-                <span aria-hidden className="text-lg leading-none">
-                  {tab.icon}
-                </span>
+                <Icon name={tab.icon} />
                 {tab.label}
               </Link>
             </li>

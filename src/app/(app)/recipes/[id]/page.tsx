@@ -4,6 +4,7 @@ import { addRecipeToList } from "@/lib/actions/list";
 import { centsToDisplay } from "@/lib/money";
 import { ServesStepper } from "@/components/recipe/ServesStepper";
 import { IngredientRow } from "@/components/recipe/IngredientRow";
+import { StickyActionBar } from "@/components/ui/StickyActionBar";
 
 export default async function RecipeDetailPage({
   params,
@@ -23,34 +24,40 @@ export default async function RecipeDetailPage({
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="font-serif-heading text-3xl">{recipe.name}</h1>
-        {recipe.tag && <p className="text-sm text-(--color-ink-muted)">{recipe.tag}</p>}
+    <>
+      <div className="flex flex-col gap-5">
+        <div>
+          <h1 className="font-serif-heading text-3xl">{recipe.name}</h1>
+          {recipe.tag && (
+            <p className="text-sm text-(--color-ink-muted)">{recipe.tag}</p>
+          )}
+        </div>
+
+        <ServesStepper recipeId={id} current={recipe.targetServes} />
+
+        <ul className="flex flex-col gap-2">
+          {recipe.ingredients.map((ing) => (
+            <li key={ing.id}>
+              <IngredientRow ingredient={ing} />
+            </li>
+          ))}
+        </ul>
+
+        <div className="rounded-2xl border border-(--color-border) bg-(--color-surface-alt) p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-(--color-ink-muted)">Total</span>
+            <span className="text-lg font-semibold">
+              {centsToDisplay(recipe.totalCents)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-(--color-ink-muted)">Cost / serve</span>
+            <span>{centsToDisplay(recipe.costPerServeCents)}</span>
+          </div>
+        </div>
       </div>
 
-      <ServesStepper recipeId={id} current={recipe.targetServes} />
-
-      <ul className="flex flex-col gap-2">
-        {recipe.ingredients.map((ing) => (
-          <li key={ing.id}>
-            <IngredientRow ingredient={ing} />
-          </li>
-        ))}
-      </ul>
-
-      <div className="rounded-2xl border border-(--color-border) bg-(--color-surface-alt) p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-(--color-ink-muted)">Total</span>
-          <span className="text-lg font-semibold">{centsToDisplay(recipe.totalCents)}</span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-(--color-ink-muted)">Cost / serve</span>
-          <span>{centsToDisplay(recipe.costPerServeCents)}</span>
-        </div>
-      </div>
-
-      <div className="flex gap-2">
+      <StickyActionBar>
         <form action={addToList} className="flex-1">
           <button
             type="submit"
@@ -65,7 +72,7 @@ export default async function RecipeDetailPage({
         >
           Cost breakdown
         </Link>
-      </div>
-    </div>
+      </StickyActionBar>
+    </>
   );
 }

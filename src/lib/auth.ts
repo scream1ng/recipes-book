@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
@@ -66,7 +67,7 @@ export async function requireUser() {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) {
-    throw new Error("UNAUTHENTICATED");
+    redirect("/signin");
   }
 
   await prisma.userSettings.upsert({

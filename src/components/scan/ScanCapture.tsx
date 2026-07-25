@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Icon } from "@/components/ui/Icon";
 
 type Status = "idle" | "uploading" | "error";
 
@@ -37,7 +38,7 @@ export function ScanCapture() {
   return (
     <div className="flex flex-col items-center gap-6 py-10 text-center">
       <div className="flex h-40 w-40 items-center justify-center rounded-full bg-(--color-surface-alt) text-5xl">
-        📷
+        <Icon name="scan" size={48} className="text-(--color-accent)" />
       </div>
 
       {status === "uploading" ? (
