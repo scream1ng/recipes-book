@@ -1,15 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #f6f2e9;
-  --color-surface: #fffdf7;
-  --color-surface-alt: #f1eada;
-  --color-ink: #23201b;
-  --color-ink-muted: #6e6659;
-  --color-border: #b0a492;
-  --color-accent: #b4472c;
-  --color-accent-dark: #8e3520;
-  --color-good: #3e6b4a;
+  --color-bg: #F6EFE9;
+  --color-surface: #FFFCF9;
+  --color-surface-alt: #E8DED6;
+  --color-ink: #2B211E;
+  --color-ink-muted: #9A8A85;
+  --color-border: rgba(60, 40, 35, .12);
+  --color-accent: #C9587A;
+  --color-accent-dark: #A8456A;
+  --color-accent-soft: #F2A9BE;
+  --color-good: #6F8F73;
+  --color-coles: #E0402F;
+  --color-woolies: #3E8E4F;
 }
 
 @theme inline {
@@ -21,7 +24,10 @@
   --color-border: var(--color-border);
   --color-accent: var(--color-accent);
   --color-accent-dark: var(--color-accent-dark);
+  --color-accent-soft: var(--color-accent-soft);
   --color-good: var(--color-good);
+  --color-coles: var(--color-coles);
+  --color-woolies: var(--color-woolies);
   --font-sans: var(--font-public-sans);
   --font-serif: var(--font-newsreader);
 }
@@ -29,9 +35,26 @@
 body {
   background: var(--color-bg);
   color: var(--color-ink);
-  font-family: var(--font-public-sans), -apple-system, system-ui, sans-serif;
+  font-family: var(--font-public-sans), -apple-system, "SF Pro Text", system-ui, sans-serif;
 }
 
-h1, h2, h3, .font-serif-heading {
+/* Recipe names only — screen titles, headers, and nav use the sans stack above. */
+.recipe-name {
   font-family: var(--font-newsreader), Georgia, serif;
+}
+
+:root {
+  --tabbar-h: 49px;
+  --tabbar-total: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

@@ -1,8 +1,10 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { normalizeIngredientName } from "@/lib/units/normalize";
+import { pickProductOption } from "@/lib/pricing/storeSelect";
 import type { CanonicalUnit, IngredientCategory, ProductOptionSource, Store } from "@/generated/prisma";
 
 export interface CatalogSearchResult {
@@ -229,4 +231,65 @@ export async function addColesProductAsOption(input: AddColesProductInput) {
   });
 
   return option;
+}
+
+// ---------- onHand (Pantry) ----------
+
+export async function toggleOnHand(catalogIngredientId: string) {
+  const userId = await requireUser();
+  const existing = await prisma.catalogIngredient.findFirst({
+    where: { id: catalogIngredientId, userId },
+  });
+  if (!existing) throw new Error("Catalog ingredient not found");
+
+  await prisma.catalogIngredient.update({
+    where: { id: catalogIngredientId },
+    data: { onHand: !existing.onHand },
+  });
+
+  revalidatePath("/pantry");
+  revalidatePath("/order");
+  revalidatePath("/list");
+}
+
+export interface PantryIngredientRow {
+  id: string;
+  name: string;
+  category: IngredientCategory;
+  onHand: boolean;
+  store: Store | null;
+  priceCents: number | null;
+  packLabel: string | null;
+  priceUpdatedAt: Date | null;
+}
+
+/** All of the user's catalog ingredients, grouped by category, for the Pantry screen. */
+export async function getPantryIngredients(): Promise<Record<string, PantryIngredientRow[]>> {
+  const userId = await requireUser();
+  const settings = await prisma.userSettings.findUniqueOrThrow({ where: { userId } });
+
+  const ingredients = await prisma.catalogIngredient.findMany({
+    where: { userId },
+    include: { productOptions: { where: { isArchived: false } }, selectedProductOption: true },
+    orderBy: { name: "asc" },
+  });
+
+  const rows: PantryIngredientRow[] = ingredients.map((ci) => {
+    const option = pickProductOption(ci, settings.storePreference);
+    return {
+      id: ci.id,
+      name: ci.name,
+      category: ci.category,
+      onHand: ci.onHand,
+      store: option?.store ?? null,
+      priceCents: option?.priceCents ?? null,
+      packLabel: option?.packLabel ?? null,
+      priceUpdatedAt: option?.priceUpdatedAt ?? null,
+    };
+  });
+
+  return rows.reduce<Record<string, PantryIngredientRow[]>>((acc, row) => {
+    (acc[row.category] ??= []).push(row);
+    return acc;
+  }, {});
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lineCostCents, scaleQty, costPerServe, unitPriceCents } from "../cost";
+import { lineCostCents, scaleQty, costPerServe, unitPriceCents, pantryCostCents } from "../cost";
 import { computePackCount } from "../packs";
 import { isPriceStale } from "../staleness";
 import { findCheaperAlternative } from "../savings";
@@ -28,6 +28,16 @@ describe("cost", () => {
     expect(unitPriceCents({ packQty: -5, priceCents: 400 })).toBe(0);
     expect(lineCostCents(250, { packQty: 0, priceCents: 400 })).toBe(0);
     expect(lineCostCents(250, { packQty: -5, priceCents: 400 })).toBe(0);
+  });
+
+  it("sums cost of on-hand lines only", () => {
+    expect(
+      pantryCostCents([
+        { costCents: 200, onHand: true },
+        { costCents: 300, onHand: false },
+        { costCents: null, onHand: true },
+      ])
+    ).toBe(200);
   });
 });
 

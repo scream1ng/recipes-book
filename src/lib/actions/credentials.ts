@@ -38,7 +38,7 @@ export async function signUpAction(
   const passwordHash = await hashPassword(password);
   await prisma.user.create({ data: { email, password: passwordHash } });
 
-  await signIn("credentials", { email, password, redirectTo: "/recipes" });
+  await signIn("credentials", { email, password, redirectTo: "/order" });
   return {};
 }
 
@@ -50,7 +50,7 @@ export async function signInAction(
   const password = String(formData.get("password") ?? "");
 
   try {
-    await signIn("credentials", { email, password, redirectTo: "/recipes" });
+    await signIn("credentials", { email, password, redirectTo: "/order" });
   } catch (err) {
     if (err instanceof AuthError) {
       return { error: "Incorrect email or password." };

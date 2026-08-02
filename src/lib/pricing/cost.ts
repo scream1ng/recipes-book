@@ -31,3 +31,8 @@ export function costPerServe(totalCostCents: number, serves: number): number {
   if (serves <= 0) return 0;
   return Math.round(totalCostCents / serves);
 }
+
+/** Sums the cost of lines whose ingredient is already on hand (covered by the pantry). */
+export function pantryCostCents(lines: { costCents: number | null; onHand: boolean }[]): number {
+  return lines.reduce((sum, l) => sum + (l.onHand && l.costCents != null ? l.costCents : 0), 0);
+}

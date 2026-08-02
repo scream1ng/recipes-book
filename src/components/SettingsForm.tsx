@@ -30,7 +30,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
   return (
     <div className="flex flex-col gap-6">
       <section>
-        <h2 className="mb-2 font-serif-heading text-lg">Store preference</h2>
+        <h2 className="mb-2 text-lg">Store preference</h2>
         <div className="flex flex-col gap-2">
           {STORE_OPTIONS.map((opt) => (
             <label

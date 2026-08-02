@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { applySwapSuggestion } from "@/lib/actions/recipes";
 import { addColesProductAsOption } from "@/lib/actions/catalog";
 import { centsToDisplay } from "@/lib/money";
+import { StoreBadge } from "@/components/ui/StoreBadge";
 
 interface StoredOption {
   id: string;
@@ -80,66 +81,75 @@ export function SwapSheet({
   return (
     <div className="fixed inset-0 z-20 flex items-end bg-black/40" onClick={onClose}>
       <div
-        className="max-h-[80vh] w-full overflow-y-auto rounded-t-3xl bg-(--color-surface) p-5"
+        className="max-h-[80vh] w-full overflow-y-auto rounded-t-3xl bg-(--color-surface) pb-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-serif-heading text-xl">Swap: {displayName}</h2>
+        <div className="flex justify-center pt-2 pb-1">
+          <div className="h-1 w-9 rounded-full bg-(--color-border)" />
+        </div>
+
+        <div className="mb-3 flex items-center justify-between px-5">
+          <h2 className="text-xl">Swap: {displayName}</h2>
           <button onClick={onClose} className="text-(--color-ink-muted)" aria-label="Close">
             ✕
           </button>
         </div>
 
-        {error && <p className="text-sm text-(--color-accent-dark)">{error}</p>}
-        {!stored && !error && <p className="text-sm text-(--color-ink-muted)">Loading options…</p>}
+        {error && <p className="px-5 text-sm text-(--color-accent-dark)">{error}</p>}
+        {!stored && !error && (
+          <p className="px-5 text-sm text-(--color-ink-muted)">Loading options…</p>
+        )}
 
         {stored && (
-          <ul className="flex flex-col gap-2">
-            {stored.map((opt) => (
-              <li key={opt.id}>
-                <button
-                  disabled={isPending}
-                  onClick={() => select(opt.id)}
-                  className={`flex w-full items-center justify-between rounded-xl border p-3 text-left ${
-                    opt.isCurrent
-                      ? "border-(--color-accent) bg-(--color-surface-alt)"
-                      : "border-(--color-border)"
-                  }`}
-                >
-                  <span>
-                    <span className="mr-2 rounded-full bg-(--color-surface-alt) px-2 py-0.5 text-xs font-medium">
-                      {opt.store}
+          <div>
+            <ul className="flex flex-col divide-y divide-(--color-border)">
+              {stored.map((opt) => (
+                <li key={opt.id}>
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => select(opt.id)}
+                    className={`flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left ${
+                      opt.isCurrent ? "bg-(--color-surface-alt)" : ""
+                    }`}
+                  >
+                    <StoreBadge store={opt.store} />
+                    <span className="min-w-0 flex-1 truncate">
+                      {opt.productName}{" "}
+                      <span className="text-(--color-ink-muted)">({opt.packLabel})</span>
+                      {opt.isStale && (
+                        <span className="ml-2 text-xs text-(--color-accent-dark)">stale price</span>
+                      )}
                     </span>
-                    {opt.productName} <span className="text-(--color-ink-muted)">({opt.packLabel})</span>
-                    {opt.isStale && (
-                      <span className="ml-2 text-xs text-(--color-accent-dark)">stale price</span>
-                    )}
-                  </span>
-                  <span className="font-medium">{centsToDisplay(opt.priceCents)}</span>
-                </button>
-              </li>
-            ))}
+                    <span className="shrink-0 tabular-nums font-medium">
+                      {centsToDisplay(opt.priceCents)}
+                    </span>
+                  </button>
+                </li>
+              ))}
 
-            {liveColes.map((product, i) => (
-              <li key={`live-${i}`}>
-                <button
-                  disabled={isPending || product.priceCents == null}
-                  onClick={() => selectLive(product)}
-                  className="flex w-full items-center justify-between rounded-xl border border-dashed border-(--color-border) p-3 text-left disabled:opacity-50"
-                >
-                  <span>
-                    <span className="mr-2 rounded-full bg-(--color-surface-alt) px-2 py-0.5 text-xs font-medium">
-                      COLES · live
+              {liveColes.map((product, i) => (
+                <li key={`live-${i}`}>
+                  <button
+                    type="button"
+                    disabled={isPending || product.priceCents == null}
+                    onClick={() => selectLive(product)}
+                    className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-50"
+                  >
+                    <StoreBadge store="COLES" />
+                    <span className="text-[10px] font-medium text-(--color-ink-muted)">live</span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {product.name}{" "}
+                      <span className="text-(--color-ink-muted)">({product.packLabel})</span>
                     </span>
-                    {product.name} <span className="text-(--color-ink-muted)">({product.packLabel})</span>
-                  </span>
-                  <span className="font-medium">
-                    {product.priceCents != null ? centsToDisplay(product.priceCents) : "—"}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+                    <span className="shrink-0 tabular-nums font-medium">
+                      {product.priceCents != null ? centsToDisplay(product.priceCents) : "—"}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </div>

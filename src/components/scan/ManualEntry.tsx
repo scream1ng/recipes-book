@@ -127,7 +127,7 @@ export function ManualEntry({ recipeName: initialName }: { recipeName?: string }
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Recipe name"
-        className="rounded-xl border border-(--color-border) bg-(--color-surface) px-3 py-2 font-serif-heading text-xl"
+        className="rounded-xl border border-(--color-border) bg-(--color-surface) px-3 py-2 recipe-name text-xl"
       />
 
       <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-3">
