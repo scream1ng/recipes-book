@@ -9,8 +9,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen flex-col">
       <main
-        className="mx-auto w-full max-w-lg flex-1 px-4 pb-4"
-        style={{ paddingTop: "calc(1.5rem + env(safe-area-inset-top))" }}
+        className="mx-auto w-full max-w-lg flex-1 px-4"
+        style={{
+          paddingTop: "calc(1.5rem + env(safe-area-inset-top))",
+          paddingBottom: "calc(1rem + var(--tabbar-total))",
+        }}
       >
         {children}
       </main>

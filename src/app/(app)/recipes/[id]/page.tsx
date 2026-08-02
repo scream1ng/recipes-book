@@ -1,15 +1,18 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCostBreakdown, getRecipe, markBakedToday } from "@/lib/actions/recipes";
 import { setOrderQty } from "@/lib/actions/order";
+import { getSettings } from "@/lib/actions/settings";
 import { centsToDisplay } from "@/lib/money";
 import { ServesStepper } from "@/components/recipe/ServesStepper";
 import { IngredientRow } from "@/components/recipe/IngredientRow";
+import { RecipeHeaderActions } from "@/components/recipe/RecipeHeaderActions";
 import { CostShareBar } from "@/components/recipe/CostShareBar";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
 import { NavBar } from "@/components/ui/NavBar";
+import { BackLink } from "@/components/ui/BackLink";
 import { ListGroup, ListRow, ListDivider } from "@/components/ui/ListGroup";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { Icon } from "@/components/ui/Icon";
 
 const dateFormatter = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric" });
 
@@ -23,9 +26,10 @@ export default async function RecipeDetailPage({
   const { id } = await params;
   const { serves } = await searchParams;
   const targetServes = serves ? Number(serves) || undefined : undefined;
-  const [recipe, breakdown] = await Promise.all([
+  const [recipe, breakdown, settings] = await Promise.all([
     getRecipe(id, targetServes),
     getCostBreakdown(id, targetServes),
+    getSettings(),
   ]);
 
   const topBreakdownItems = breakdown.items.slice(0, 6);
@@ -43,14 +47,9 @@ export default async function RecipeDetailPage({
 
   return (
     <>
-      <div className="-mx-4" style={{ marginTop: "calc(-1.5rem - env(safe-area-inset-top))" }}>
-        <NavBar title={recipe.name} left={<Link href="/recipes">←</Link>} />
-      </div>
+      <NavBar title={recipe.name} left={<BackLink href="/recipes" label="Recipes" />} />
 
-      <div className="pt-2">
-        <h1 className="recipe-name text-3xl">{recipe.name}</h1>
-        {recipe.tag && <p className="text-sm text-(--color-ink-muted)">{recipe.tag}</p>}
-      </div>
+      <RecipeHeaderActions recipeId={id} name={recipe.name} tag={recipe.tag} />
 
       <div className="pt-4">
         <ServesStepper recipeId={id} current={recipe.targetServes} />
@@ -107,10 +106,13 @@ export default async function RecipeDetailPage({
         <form action={handleMarkBaked}>
           <button
             type="submit"
-            className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left"
+            className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left active:bg-(--color-surface-alt)"
           >
-            <span className={`flex-1 ${recipe.bakedToday ? "text-(--color-good)" : ""}`}>
-              {recipe.bakedToday ? "Logged for today ✓" : "Mark baked today"}
+            <span
+              className={`flex flex-1 items-center gap-1.5 ${recipe.bakedToday ? "text-(--color-good)" : ""}`}
+            >
+              {recipe.bakedToday ? "Logged for today" : "Mark baked today"}
+              {recipe.bakedToday && <Icon name="checkmark" size={16} />}
             </span>
           </button>
         </form>
@@ -121,7 +123,7 @@ export default async function RecipeDetailPage({
         {recipe.ingredients.map((ing, i) => (
           <div key={ing.id}>
             {i > 0 && <ListDivider />}
-            <IngredientRow ingredient={ing} />
+            <IngredientRow ingredient={ing} showUnitPrices={settings.showUnitPrices} />
           </div>
         ))}
       </ListGroup>

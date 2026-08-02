@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveScannedRecipe, type RecipeIngredientDraft } from "@/lib/actions/recipes";
 import { findOrCreateCatalogIngredient } from "@/lib/actions/catalog";
+import type { IngredientCategory } from "@/generated/prisma";
 import { normalizeToCanonical, detectCanonicalUnitFromRawUnit } from "@/lib/units/normalize";
 import { NavBar } from "@/components/ui/NavBar";
+import { BackLink } from "@/components/ui/BackLink";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ListGroup, ListRow, ListDivider } from "@/components/ui/ListGroup";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
@@ -21,7 +23,18 @@ interface ParsedLine {
   flagged: boolean;
   note: string | null;
   catalogMatch: { id: string; name: string; confidence: number } | null;
+  category: string;
 }
+
+const CATEGORY_LABELS: Record<string, string> = {
+  MEAT_POULTRY: "Meat & Poultry",
+  PRODUCE: "Produce",
+  PANTRY: "Pantry",
+  DAIRY_EGGS: "Dairy & Eggs",
+  FROZEN: "Frozen",
+  BAKERY: "Bakery",
+  OTHER: "Other",
+};
 
 interface ParsedResult {
   recipeName: string | null;
@@ -44,6 +57,7 @@ export function ReviewEditor() {
     const raw = sessionStorage.getItem("scan-review-draft");
     if (raw) {
       const parsed = JSON.parse(raw) as ParsedResult;
+      parsed.lines = parsed.lines.map((line) => ({ ...line, category: line.category ?? "OTHER" }));
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of sessionStorage on mount, not derivable from props/state
       setDraft(parsed);
       setConfirmed(parsed.lines.map(() => false));
@@ -52,16 +66,20 @@ export function ReviewEditor() {
 
   if (!draft) {
     return (
-      <p className="text-(--color-ink-muted)">
-        No scan in progress. Go back and take a photo first.
-      </p>
+      <>
+        <NavBar title="Review" left={<BackLink href="/scan" label="Scan" />} />
+        <p className="mt-6 text-(--color-ink-muted)">
+          No scan in progress. Go back and take a photo first.
+        </p>
+      </>
     );
   }
 
   const method = draft.method ?? [];
   const confirmedCount = confirmed.filter(Boolean).length;
   const hasContent = draft.lines.length > 0 || method.length > 0;
-  const allConfirmed = confirmedCount === draft.lines.length && hasContent;
+  const allConfirmed =
+    draft.lines.length > 0 && confirmedCount === draft.lines.length && hasContent;
 
   function updateLine(index: number, patch: Partial<ParsedLine>) {
     setDraft((prev) => {
@@ -74,6 +92,9 @@ export function ReviewEditor() {
           updated.amount != null && updated.unit
             ? normalizeToCanonical(updated.amount, updated.unit, canonicalUnit).qtyCanonical
             : null;
+      }
+      if ("name" in patch) {
+        updated.catalogMatch = null;
       }
       lines[index] = updated;
       return { ...prev, lines };
@@ -88,6 +109,10 @@ export function ReviewEditor() {
     });
   }
 
+  function confirmAll() {
+    setConfirmed(draft ? draft.lines.map(() => true) : []);
+  }
+
   async function handleSave() {
     if (!draft) return;
     setSaving(true);
@@ -100,7 +125,7 @@ export function ReviewEditor() {
         if (!catalogIngredientId && line.name) {
           const created = await findOrCreateCatalogIngredient({
             name: line.name,
-            category: "OTHER",
+            category: (line.category ?? "OTHER") as IngredientCategory,
             canonicalUnit: detectCanonicalUnitFromRawUnit(line.unit),
           });
           catalogIngredientId = created.id;
@@ -138,9 +163,7 @@ export function ReviewEditor() {
 
   return (
     <>
-      <div className="-mx-4" style={{ marginTop: "calc(-1.5rem - env(safe-area-inset-top))" }}>
-        <NavBar title="Review" />
-      </div>
+      <NavBar title="Review" left={<BackLink href="/scan" label="Scan" />} />
 
       <ListGroup className="mt-6">
         <ListRow>
@@ -155,9 +178,20 @@ export function ReviewEditor() {
 
       <div className="flex items-center justify-between">
         <SectionHeader>Ingredients</SectionHeader>
-        <span className="pr-4 text-xs text-(--color-ink-muted)">
-          {confirmedCount}/{draft.lines.length} confirmed
-        </span>
+        <div className="flex items-center gap-2 pr-4">
+          <span className="text-xs text-(--color-ink-muted)">
+            {confirmedCount}/{draft.lines.length} confirmed
+          </span>
+          {draft.lines.length > 0 && confirmedCount < draft.lines.length && (
+            <button
+              type="button"
+              onClick={confirmAll}
+              className="text-xs font-medium text-(--color-accent) active:opacity-60"
+            >
+              Confirm all
+            </button>
+          )}
+        </div>
       </div>
 
       <ListGroup>
@@ -213,6 +247,17 @@ export function ReviewEditor() {
                     className="rounded-lg border border-(--color-border) px-2 py-1 text-sm"
                   />
                 </div>
+                <select
+                  value={line.category}
+                  onChange={(e) => updateLine(i, { category: e.target.value })}
+                  className="mt-2 w-full rounded-lg border border-(--color-border) bg-transparent px-2 py-1 text-sm"
+                >
+                  {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <Toggle
                 checked={confirmed[i] ?? false}

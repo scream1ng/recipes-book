@@ -196,8 +196,9 @@ model Recipe {
   sourceType   RecipeSourceType
   orderQty     Int              @default(0)
   methodSteps  String[]         @default([])
-  lastBakedAt  DateTime?
-  bakeCount    Int              @default(0)
+  lastBakedAt     DateTime?
+  previousBakedAt DateTime?
+  bakeCount       Int              @default(0)
 
   user              User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   ingredients       RecipeIngredient[]

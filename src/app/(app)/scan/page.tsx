@@ -5,9 +5,7 @@ import { NavBar } from "@/components/ui/NavBar";
 export default function ScanPage() {
   return (
     <>
-      <div className="-mx-4" style={{ marginTop: "calc(-1.5rem - env(safe-area-inset-top))" }}>
-        <NavBar title="Scan a recipe" />
-      </div>
+      <NavBar title="Scan a recipe" />
       <ScanCapture />
       <p className="text-center text-sm text-(--color-ink-muted)">
         Prefer typing?{" "}

@@ -1,6 +1,7 @@
 import { getShoppingList, clearCheckedItems } from "@/lib/actions/list";
 import { centsToDisplay } from "@/lib/money";
 import { ListItemRow } from "@/components/list/ListItemRow";
+import { AddManualItem } from "@/components/list/AddManualItem";
 import { NavBar } from "@/components/ui/NavBar";
 import { ListGroup, ListDivider } from "@/components/ui/ListGroup";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -27,18 +28,18 @@ export default async function ShoppingListPage() {
 
   return (
     <>
-      <div className="-mx-4" style={{ marginTop: "calc(-1.5rem - env(safe-area-inset-top))" }}>
-        <NavBar
-          title="Shopping list"
-          right={
-            <form action={handleClearChecked}>
-              <button type="submit" className="text-[15px] text-(--color-accent)">
-                Clear
-              </button>
-            </form>
-          }
-        />
-      </div>
+      <NavBar
+        title="Shopping list"
+        right={
+          <form action={handleClearChecked}>
+            <button type="submit" className="text-[15px] text-(--color-accent) active:opacity-60">
+              Clear
+            </button>
+          </form>
+        }
+      />
+
+      <AddManualItem />
 
       {categories.length === 0 ? (
         <p className="mt-12 text-center text-(--color-ink-muted)">
@@ -51,7 +52,7 @@ export default async function ShoppingListPage() {
           return (
             <div key={category}>
               <div className="flex items-center justify-between pl-4 pt-6 pb-[7px]">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-(--color-ink-muted)">
+                <h2 className="text-[13px] font-semibold text-(--color-ink-muted)">
                   {CATEGORY_LABELS[category] ?? category}
                 </h2>
                 <span className="tabular-nums pr-4 text-xs text-(--color-ink-muted)">

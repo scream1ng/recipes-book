@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { applySwapSuggestion } from "@/lib/actions/recipes";
-import { addColesProductAsOption } from "@/lib/actions/catalog";
+import { addColesProductAsOption, refreshProductPrice } from "@/lib/actions/catalog";
 import { centsToDisplay } from "@/lib/money";
 import { StoreBadge } from "@/components/ui/StoreBadge";
+import { Icon } from "@/components/ui/Icon";
+import { ManualPriceForm } from "./ManualPriceForm";
 
 interface StoredOption {
   id: string;
@@ -37,30 +39,87 @@ export function SwapSheet({
   const [stored, setStored] = useState<StoredOption[] | null>(null);
   const [liveColes, setLiveColes] = useState<LiveColesProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [closing, setClosing] = useState(false);
+  const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const dragState = useRef<{ startY: number; dragging: boolean } | null>(null);
+  const loadIdRef = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/swap?catalogIngredientId=${catalogIngredientId}`)
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
+
+  function handleClose() {
+    setClosing(true);
+    setTimeout(onClose, 200);
+  }
+
+  function onGrabberPointerDown(e: React.PointerEvent) {
+    dragState.current = { startY: e.clientY, dragging: true };
+    setDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function onGrabberPointerMove(e: React.PointerEvent) {
+    if (!dragState.current?.dragging) return;
+    const delta = e.clientY - dragState.current.startY;
+    setDragY(Math.max(0, delta));
+  }
+
+  function onGrabberPointerUp() {
+    if (!dragState.current?.dragging) return;
+    dragState.current.dragging = false;
+    setDragging(false);
+    if (dragY > 100) {
+      handleClose();
+    } else {
+      setDragY(0);
+    }
+  }
+
+  function load() {
+    const requestId = ++loadIdRef.current;
+    return fetch(`/api/swap?catalogIngredientId=${catalogIngredientId}`)
       .then((res) => res.json())
       .then((data) => {
-        if (cancelled) return;
+        if (requestId !== loadIdRef.current) return;
         if (data.error) setError(data.error);
         else {
           setStored(data.stored);
           setLiveColes(data.liveColes ?? []);
         }
       })
-      .catch(() => !cancelled && setError("Could not load options"));
-    return () => {
-      cancelled = true;
-    };
+      .catch(() => {
+        if (requestId !== loadIdRef.current) return;
+        setError("Could not load options");
+      });
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalogIngredientId]);
+
+  function refresh(productOptionId: string) {
+    setRefreshingId(productOptionId);
+    startTransition(async () => {
+      await refreshProductPrice(productOptionId);
+      await load();
+      setRefreshingId(null);
+    });
+  }
 
   function select(productOptionId: string) {
     startTransition(async () => {
       await applySwapSuggestion(catalogIngredientId, productOptionId);
-      onClose();
+      handleClose();
     });
   }
 
@@ -74,24 +133,44 @@ export function SwapSheet({
         packQty: product.packQty as number,
         priceCents: product.priceCents as number,
       });
-      onClose();
+      handleClose();
     });
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-end bg-black/40" onClick={onClose}>
+    <div
+      className={`fixed inset-0 z-20 flex items-end bg-black/40 transition-opacity duration-200 ${
+        closing ? "opacity-0" : "motion-safe:animate-[fade-in_.2s_ease-out]"
+      }`}
+      onClick={handleClose}
+    >
       <div
-        className="max-h-[80vh] w-full overflow-y-auto rounded-t-3xl bg-(--color-surface) pb-5"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Swap: ${displayName}`}
+        className={`max-h-[80vh] w-full overflow-y-auto rounded-t-3xl bg-(--color-surface) pb-5 ${
+          closing ? "" : "motion-safe:animate-[sheet-up_.25s_ease-out]"
+        } ${dragging ? "" : "transition-transform duration-200"}`}
+        style={{ transform: closing ? "translateY(100%)" : `translateY(${dragY}px)` }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-center pt-2 pb-1">
+        <div
+          className="flex touch-none justify-center pt-2 pb-1"
+          onPointerDown={onGrabberPointerDown}
+          onPointerMove={onGrabberPointerMove}
+          onPointerUp={onGrabberPointerUp}
+        >
           <div className="h-1 w-9 rounded-full bg-(--color-border)" />
         </div>
 
         <div className="mb-3 flex items-center justify-between px-5">
           <h2 className="text-xl">Swap: {displayName}</h2>
-          <button onClick={onClose} className="text-(--color-ink-muted)" aria-label="Close">
-            ✕
+          <button
+            onClick={handleClose}
+            className="-mr-2 flex h-11 w-11 items-center justify-center text-(--color-ink-muted) active:opacity-60"
+            aria-label="Close"
+          >
+            <Icon name="xmark" size={18} />
           </button>
         </div>
 
@@ -100,16 +179,29 @@ export function SwapSheet({
           <p className="px-5 text-sm text-(--color-ink-muted)">Loading options…</p>
         )}
 
-        {stored && (
+        {stored && manualOpen && (
+          <ManualPriceForm
+            catalogIngredientId={catalogIngredientId}
+            onDone={handleClose}
+            onCancel={() => setManualOpen(false)}
+          />
+        )}
+
+        {stored && !manualOpen && (
           <div>
+            {stored.length === 0 && liveColes.length === 0 && (
+              <p className="px-5 pb-3 text-sm text-(--color-ink-muted)">
+                Couldn&apos;t reach Coles — enter a price manually.
+              </p>
+            )}
             <ul className="flex flex-col divide-y divide-(--color-border)">
               {stored.map((opt) => (
-                <li key={opt.id}>
+                <li key={opt.id} className="flex items-center">
                   <button
                     type="button"
                     disabled={isPending}
                     onClick={() => select(opt.id)}
-                    className={`flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left ${
+                    className={`flex min-h-[48px] flex-1 items-center gap-3 px-4 py-2 text-left active:bg-(--color-surface-alt) ${
                       opt.isCurrent ? "bg-(--color-surface-alt)" : ""
                     }`}
                   >
@@ -125,6 +217,16 @@ export function SwapSheet({
                       {centsToDisplay(opt.priceCents)}
                     </span>
                   </button>
+                  {opt.isStale && opt.source === "COLES_SCRAPE" && (
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => refresh(opt.id)}
+                      className="shrink-0 px-3 text-xs font-medium text-(--color-accent) active:opacity-60"
+                    >
+                      {refreshingId === opt.id && isPending ? "…" : "Refresh"}
+                    </button>
+                  )}
                 </li>
               ))}
 
@@ -134,7 +236,7 @@ export function SwapSheet({
                     type="button"
                     disabled={isPending || product.priceCents == null}
                     onClick={() => selectLive(product)}
-                    className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-50"
+                    className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left active:bg-(--color-surface-alt) disabled:opacity-50"
                   >
                     <StoreBadge store="COLES" />
                     <span className="text-[10px] font-medium text-(--color-ink-muted)">live</span>
@@ -149,6 +251,16 @@ export function SwapSheet({
                 </li>
               ))}
             </ul>
+
+            <div className="px-5 pt-3">
+              <button
+                type="button"
+                onClick={() => setManualOpen(true)}
+                className="w-full rounded-full border border-(--color-border) px-4 py-2.5 text-center text-sm font-medium text-(--color-ink)"
+              >
+                Enter price manually
+              </button>
+            </div>
           </div>
         )}
       </div>

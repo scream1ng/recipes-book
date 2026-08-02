@@ -23,7 +23,7 @@ export function TabBar() {
 
   return (
     <nav
-      className="sticky bottom-0 z-20 border-t border-(--color-border) bg-(--color-surface)/90 backdrop-blur-md"
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-(--color-border) bg-(--color-surface)/90 backdrop-blur-md"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul
@@ -36,11 +36,11 @@ export function TabBar() {
             <li key={tab.href}>
               <Link
                 href={tab.href}
-                className={`flex flex-col items-center gap-0.5 px-4 text-[11px] ${
+                className={`flex min-h-11 flex-col items-center justify-center gap-0.5 px-4 text-[11px] active:opacity-60 ${
                   active ? "text-(--color-accent)" : "text-(--color-ink-muted)"
                 }`}
               >
-                <Icon name={tab.icon} size={22} />
+                <Icon name={tab.icon} size={22} filled={active} />
                 {tab.label}
               </Link>
             </li>

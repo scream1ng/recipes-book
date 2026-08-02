@@ -7,6 +7,7 @@ import { ListGroup, ListRow, ListDivider } from "@/components/ui/ListGroup";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
 import { OrderStepper } from "@/components/order/OrderStepper";
+import { Icon } from "@/components/ui/Icon";
 
 export default async function OrderPage() {
   const [recipes, order] = await Promise.all([listRecipes(), getOrder()]);
@@ -18,18 +19,18 @@ export default async function OrderPage() {
 
   return (
     <>
-      <div className="-mx-4" style={{ marginTop: "calc(-1.5rem - env(safe-area-inset-top))" }}>
-        <NavBar
-          title="Order"
-          right={
+      <NavBar
+        title="Order"
+        right={
+          recipes.length > 0 ? (
             <form action={handleClear}>
-              <button type="submit" className="text-[15px] text-(--color-accent)">
+              <button type="submit" className="text-[15px] text-(--color-accent) active:opacity-60">
                 Clear order
               </button>
             </form>
-          }
-        />
-      </div>
+          ) : undefined
+        }
+      />
 
       {recipes.length === 0 ? (
         <p className="mt-12 text-center text-(--color-ink-muted)">
@@ -60,36 +61,53 @@ export default async function OrderPage() {
       <SectionHeader>Pantry</SectionHeader>
       <ListGroup>
         <Link href="/pantry">
-          <ListRow>
+          <ListRow interactive>
             <span className="flex-1">Pantry &amp; staples</span>
-            <span className="text-(--color-ink-muted)">›</span>
+            <Icon name="chevron-right" size={16} className="text-(--color-ink-muted)" />
           </ListRow>
         </Link>
       </ListGroup>
 
-      <StickyActionBar>
-        <div className="flex flex-1 flex-col justify-center text-sm">
-          <span className="font-semibold">
-            {order.cakeCount === 0
-              ? "Nothing on the order yet"
-              : `${order.cakeCount} ${order.cakeCount === 1 ? "cake" : "cakes"} to bake`}
-          </span>
-          <span className="tabular-nums text-(--color-ink-muted)">
-            {centsToDisplay(order.aggregateCents)}
-          </span>
-        </div>
-        <Link
-          href={order.recipeCount > 0 ? "/list" : "#"}
-          aria-disabled={order.recipeCount === 0}
-          className={`flex-1 rounded-full px-4 py-2.5 text-center text-sm font-medium ${
-            order.recipeCount === 0
-              ? "pointer-events-none bg-(--color-surface-alt) text-(--color-ink-muted)"
-              : "bg-(--color-accent) text-white"
-          }`}
-        >
-          Ingredient list
-        </Link>
-      </StickyActionBar>
+      {recipes.length > 0 ? (
+        <StickyActionBar>
+          <div className="flex flex-1 flex-col justify-center text-sm">
+            <span className="font-semibold">
+              {order.cakeCount === 0
+                ? "Nothing on the order yet"
+                : `${order.cakeCount} ${order.cakeCount === 1 ? "cake" : "cakes"} to bake`}
+            </span>
+            <span className="tabular-nums text-(--color-ink-muted)">
+              {centsToDisplay(order.aggregateCents)}
+            </span>
+          </div>
+          <Link
+            href={order.recipeCount > 0 ? "/list" : "#"}
+            aria-disabled={order.recipeCount === 0}
+            className={`flex-1 rounded-full px-4 py-2.5 text-center text-sm font-medium ${
+              order.recipeCount === 0
+                ? "pointer-events-none bg-(--color-surface-alt) text-(--color-ink-muted)"
+                : "bg-(--color-accent) text-white"
+            }`}
+          >
+            Ingredient list
+          </Link>
+        </StickyActionBar>
+      ) : (
+        <StickyActionBar>
+          <Link
+            href="/scan"
+            className="flex-1 rounded-full bg-(--color-accent) px-4 py-2.5 text-center text-sm font-medium text-white"
+          >
+            + Scan
+          </Link>
+          <Link
+            href="/scan/manual"
+            className="flex-1 rounded-full border border-(--color-border) px-4 py-2.5 text-center text-sm font-medium text-(--color-ink)"
+          >
+            + Manual
+          </Link>
+        </StickyActionBar>
+      )}
     </>
   );
 }

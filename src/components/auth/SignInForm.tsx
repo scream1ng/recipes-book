@@ -18,7 +18,7 @@ export function SignInForm() {
           name="email"
           required
           autoComplete="email"
-          className="rounded-lg border border-(--color-border) px-3 py-2"
+          className="rounded-lg border border-(--color-border) px-3 py-2 text-base"
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
@@ -28,7 +28,7 @@ export function SignInForm() {
           name="password"
           required
           autoComplete="current-password"
-          className="rounded-lg border border-(--color-border) px-3 py-2"
+          className="rounded-lg border border-(--color-border) px-3 py-2 text-base"
         />
       </label>
 

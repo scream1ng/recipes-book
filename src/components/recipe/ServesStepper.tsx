@@ -10,7 +10,7 @@ export function ServesStepper({ recipeId, current }: { recipeId: string; current
           <Link
             key={n}
             href={`/recipes/${recipeId}?serves=${n}`}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium tabular-nums ${
+            className={`rounded-full px-4 py-1.5 text-sm font-medium tabular-nums active:opacity-60 ${
               current === n
                 ? "bg-(--color-surface) text-(--color-ink) shadow-sm"
                 : "text-(--color-ink-muted)"

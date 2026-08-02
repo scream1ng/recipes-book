@@ -6,6 +6,7 @@ import type { ShoppingListRow } from "@/lib/actions/list";
 import { centsToDisplay } from "@/lib/money";
 import { ListRow } from "@/components/ui/ListGroup";
 import { StoreBadge } from "@/components/ui/StoreBadge";
+import { SwipeRow } from "@/components/ui/SwipeRow";
 
 export function ListItemRow({ row }: { row: ShoppingListRow }) {
   const [isPending, startTransition] = useTransition();
@@ -18,15 +19,17 @@ export function ListItemRow({ row }: { row: ShoppingListRow }) {
     }
   }
 
-  return (
+  const content = (
     <ListRow>
-      <input
-        type="checkbox"
-        checked={row.isChecked}
-        disabled={isPending}
-        onChange={toggle}
-        className="h-5 w-5 shrink-0 accent-(--color-accent)"
-      />
+      <span className="-mx-3 flex h-11 w-11 shrink-0 items-center justify-center">
+        <input
+          type="checkbox"
+          checked={row.isChecked}
+          disabled={isPending}
+          onChange={toggle}
+          className="h-5 w-5 accent-(--color-accent)"
+        />
+      </span>
       <div className={`min-w-0 flex-1 ${row.isChecked ? "text-(--color-ink-muted) line-through" : ""}`}>
         <p className="truncate font-medium">{row.label}</p>
         {row.store && (
@@ -39,16 +42,12 @@ export function ListItemRow({ row }: { row: ShoppingListRow }) {
         )}
       </div>
       <span className="tabular-nums shrink-0 font-medium">{centsToDisplay(row.totalCents)}</span>
-      {row.kind === "manual" && (
-        <button
-          type="button"
-          onClick={() => startTransition(() => removeListItem(row.id))}
-          className="shrink-0 text-(--color-ink-muted)"
-          aria-label="Remove"
-        >
-          ✕
-        </button>
-      )}
     </ListRow>
+  );
+
+  if (row.kind !== "manual") return content;
+
+  return (
+    <SwipeRow onDelete={() => startTransition(() => removeListItem(row.id))}>{content}</SwipeRow>
   );
 }
