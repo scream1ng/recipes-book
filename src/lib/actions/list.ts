@@ -3,137 +3,119 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { scaleQty } from "@/lib/pricing/cost";
 import { computePackCount } from "@/lib/pricing/packs";
+import { getOrderIngredientList } from "@/lib/actions/order";
 
-// ---------- addRecipeToList ----------
-
-export async function addRecipeToList(recipeId: string, serves?: number) {
-  const userId = await requireUser();
-
-  const recipe = await prisma.recipe.findFirst({
-    where: { id: recipeId, userId },
-    include: { ingredients: true },
-  });
-  if (!recipe) throw new Error("Recipe not found");
-
-  const servesUsed = serves ?? recipe.baseServes;
-
-  for (const ing of recipe.ingredients) {
-    if (!ing.catalogIngredientId || ing.qtyCanonical == null) continue;
-
-    const qty = scaleQty(ing.qtyCanonical, recipe.baseServes, servesUsed);
-
-    const item = await prisma.shoppingListItem.upsert({
-      where: { userId_catalogIngredientId: { userId, catalogIngredientId: ing.catalogIngredientId } },
-      create: {
-        userId,
-        catalogIngredientId: ing.catalogIngredientId,
-        qtyCanonical: qty,
-      },
-      update: {
-        qtyCanonical: { increment: qty },
-      },
-    });
-
-    await prisma.shoppingListContribution.create({
-      data: {
-        itemId: item.id,
-        recipeId: recipe.id,
-        recipeName: recipe.name,
-        servesUsed,
-        qtyCanonical: qty,
-      },
-    });
-  }
-
-  revalidatePath("/list");
-}
-
-// ---------- removeRecipeFromList ----------
-
-export async function removeRecipeFromList(recipeId: string) {
-  const userId = await requireUser();
-
-  const contributions = await prisma.shoppingListContribution.findMany({
-    where: { recipeId, item: { userId } },
-    include: { item: true },
-  });
-
-  for (const contribution of contributions) {
-    await prisma.shoppingListContribution.delete({ where: { id: contribution.id } });
-
-    const remaining = await prisma.shoppingListContribution.aggregate({
-      where: { itemId: contribution.itemId },
-      _sum: { qtyCanonical: true },
-    });
-
-    const remainingQty = remaining._sum.qtyCanonical ?? 0;
-    if (remainingQty <= 0) {
-      await prisma.shoppingListItem.delete({ where: { id: contribution.itemId } }).catch(() => {});
-    } else {
-      await prisma.shoppingListItem.update({
-        where: { id: contribution.itemId },
-        data: { qtyCanonical: remainingQty },
-      });
-    }
-  }
-
-  revalidatePath("/list");
+export interface ShoppingListRow {
+  id: string;
+  kind: "derived" | "manual";
+  catalogIngredientId: string | null;
+  label: string;
+  category: string;
+  store: string | null;
+  packLabel: string | null;
+  packsToBuy: number | null;
+  totalCents: number;
+  isChecked: boolean;
 }
 
 // ---------- getShoppingList ----------
 
+/**
+ * The shopping list's contents are derived from the order (see
+ * getOrderIngredientList). ShoppingListItem rows now hold only tick state
+ * (for derived lines) plus any manual one-off items.
+ */
 export async function getShoppingList() {
   const userId = await requireUser();
   const settings = await prisma.userSettings.findUniqueOrThrow({ where: { userId } });
+  const { grouped: derivedGrouped } = await getOrderIngredientList();
 
-  const items = await prisma.shoppingListItem.findMany({
+  const listItems = await prisma.shoppingListItem.findMany({
     where: { userId },
-    include: {
-      catalogIngredient: { include: { selectedProductOption: true } },
-      productOption: true,
-    },
-    orderBy: { addedAt: "asc" },
+    include: { productOption: true },
   });
+  const tickByIngredient = new Map(
+    listItems.filter((i) => i.catalogIngredientId).map((i) => [i.catalogIngredientId as string, i])
+  );
+  const manualItems = listItems.filter((i) => !i.catalogIngredientId);
 
-  const rows = items.map((item) => {
-    const option = item.productOption ?? item.catalogIngredient?.selectedProductOption ?? null;
-    const category = item.catalogIngredient?.category ?? "OTHER";
+  const grouped: Record<string, ShoppingListRow[]> = {};
+  for (const [category, rows] of Object.entries(derivedGrouped)) {
+    grouped[category] = rows.map((r) => {
+      const tick = tickByIngredient.get(r.catalogIngredientId);
+      return {
+        id: tick?.id ?? r.catalogIngredientId,
+        kind: "derived" as const,
+        catalogIngredientId: r.catalogIngredientId,
+        label: r.label,
+        category,
+        store: r.store,
+        packLabel: r.packLabel,
+        packsToBuy: r.packsToBuy,
+        totalCents: r.totalCents,
+        isChecked: tick?.isChecked ?? false,
+      };
+    });
+  }
 
-    const pack =
-      option && item.qtyCanonical != null
-        ? computePackCount(item.qtyCanonical, option, settings.roundUpPartPacks)
-        : null;
+  if (manualItems.length > 0) {
+    grouped.MANUAL = manualItems.map((item) => {
+      const option = item.productOption;
+      const pack =
+        option && item.qtyCanonical != null
+          ? computePackCount(item.qtyCanonical, option, settings.roundUpPartPacks)
+          : null;
+      return {
+        id: item.id,
+        kind: "manual" as const,
+        catalogIngredientId: null,
+        label: item.manualLabel ?? "Item",
+        category: "MANUAL",
+        store: option?.store ?? null,
+        packLabel: option?.packLabel ?? null,
+        packsToBuy: pack?.packsToBuy ?? null,
+        totalCents: pack?.totalCents ?? 0,
+        isChecked: item.isChecked,
+      };
+    });
+  }
 
-    return {
-      id: item.id,
-      label: item.catalogIngredient?.name ?? item.manualLabel ?? "Item",
-      category,
-      qtyCanonical: item.qtyCanonical,
-      isChecked: item.isChecked,
-      store: option?.store ?? null,
-      packLabel: option?.packLabel ?? null,
-      packsToBuy: pack?.packsToBuy ?? null,
-      totalCents: pack?.totalCents ?? 0,
-      priceUpdatedAt: option?.priceUpdatedAt ?? null,
-    };
-  });
-
-  const grouped = rows.reduce<Record<string, typeof rows>>((acc, row) => {
-    (acc[row.category] ??= []).push(row);
-    return acc;
-  }, {});
-
-  const basketTotalCents = rows.reduce((sum, r) => sum + r.totalCents, 0);
-  const leftToBuyTotalCents = rows
+  const allRows = Object.values(grouped).flat();
+  const basketTotalCents = allRows.reduce((sum, r) => sum + r.totalCents, 0);
+  const leftToBuyTotalCents = allRows
     .filter((r) => !r.isChecked)
     .reduce((sum, r) => sum + r.totalCents, 0);
 
   return { grouped, basketTotalCents, leftToBuyTotalCents };
 }
 
-// ---------- item mutations ----------
+// ---------- tick-state mutations ----------
+
+/** Toggles the checked state of a derived (recipe-sourced) line, keyed by catalog ingredient. */
+export async function toggleDerivedListItem(catalogIngredientId: string) {
+  const userId = await requireUser();
+  const existing = await prisma.shoppingListItem.findUnique({
+    where: { userId_catalogIngredientId: { userId, catalogIngredientId } },
+  });
+
+  if (existing) {
+    await prisma.shoppingListItem.update({
+      where: { id: existing.id },
+      data: { isChecked: !existing.isChecked },
+    });
+  } else {
+    const ingredient = await prisma.catalogIngredient.findFirst({
+      where: { id: catalogIngredientId, userId },
+    });
+    if (!ingredient) return;
+    await prisma.shoppingListItem.create({
+      data: { userId, catalogIngredientId, isChecked: true },
+    });
+  }
+
+  revalidatePath("/list");
+}
 
 export async function toggleListItem(itemId: string) {
   const userId = await requireUser();

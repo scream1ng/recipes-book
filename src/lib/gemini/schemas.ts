@@ -28,6 +28,7 @@ export const recipeParseResultSchema = z.object({
   minutes: z.number().nullable(),
   serves: z.number().nullable(),
   lines: z.array(parsedIngredientLineSchema),
+  method: z.array(z.string()).default([]),
 });
 
 export type RecipeParseResult = z.infer<typeof recipeParseResultSchema>;

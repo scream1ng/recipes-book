@@ -1,10 +1,17 @@
 import Link from "next/link";
-import { getRecipe } from "@/lib/actions/recipes";
-import { addRecipeToList } from "@/lib/actions/list";
+import { redirect } from "next/navigation";
+import { getCostBreakdown, getRecipe, markBakedToday } from "@/lib/actions/recipes";
+import { setOrderQty } from "@/lib/actions/order";
 import { centsToDisplay } from "@/lib/money";
 import { ServesStepper } from "@/components/recipe/ServesStepper";
 import { IngredientRow } from "@/components/recipe/IngredientRow";
+import { CostShareBar } from "@/components/recipe/CostShareBar";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
+import { NavBar } from "@/components/ui/NavBar";
+import { ListGroup, ListRow, ListDivider } from "@/components/ui/ListGroup";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+
+const dateFormatter = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric" });
 
 export default async function RecipeDetailPage({
   params,
@@ -16,62 +23,171 @@ export default async function RecipeDetailPage({
   const { id } = await params;
   const { serves } = await searchParams;
   const targetServes = serves ? Number(serves) || undefined : undefined;
-  const recipe = await getRecipe(id, targetServes);
+  const [recipe, breakdown] = await Promise.all([
+    getRecipe(id, targetServes),
+    getCostBreakdown(id, targetServes),
+  ]);
 
-  async function addToList() {
+  const topBreakdownItems = breakdown.items.slice(0, 6);
+
+  async function handleMarkBaked() {
     "use server";
-    await addRecipeToList(id, recipe.targetServes);
+    await markBakedToday(id);
+  }
+
+  async function handleAddToOrder() {
+    "use server";
+    await setOrderQty(id, recipe.orderQty + 1);
+    redirect("/order");
   }
 
   return (
     <>
-      <div className="flex flex-col gap-5">
-        <div>
-          <h1 className="font-serif-heading text-3xl">{recipe.name}</h1>
-          {recipe.tag && (
-            <p className="text-sm text-(--color-ink-muted)">{recipe.tag}</p>
-          )}
-        </div>
-
-        <ServesStepper recipeId={id} current={recipe.targetServes} />
-
-        <ul className="flex flex-col gap-2">
-          {recipe.ingredients.map((ing) => (
-            <li key={ing.id}>
-              <IngredientRow ingredient={ing} />
-            </li>
-          ))}
-        </ul>
-
-        <div className="rounded-2xl border border-(--color-border) bg-(--color-surface-alt) p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-(--color-ink-muted)">Total</span>
-            <span className="text-lg font-semibold">
-              {centsToDisplay(recipe.totalCents)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-(--color-ink-muted)">Cost / serve</span>
-            <span>{centsToDisplay(recipe.costPerServeCents)}</span>
-          </div>
-        </div>
+      <div className="-mx-4" style={{ marginTop: "calc(-1.5rem - env(safe-area-inset-top))" }}>
+        <NavBar title={recipe.name} left={<Link href="/recipes">←</Link>} />
       </div>
 
-      <StickyActionBar>
-        <form action={addToList} className="flex-1">
+      <div className="pt-2">
+        <h1 className="recipe-name text-3xl">{recipe.name}</h1>
+        {recipe.tag && <p className="text-sm text-(--color-ink-muted)">{recipe.tag}</p>}
+      </div>
+
+      <div className="pt-4">
+        <ServesStepper recipeId={id} current={recipe.targetServes} />
+      </div>
+
+      <SectionHeader>Cost</SectionHeader>
+      <ListGroup>
+        <ListRow>
+          <span className="flex-1">Cost per slice</span>
+          <span className="tabular-nums font-semibold text-(--color-accent)">
+            {centsToDisplay(recipe.costPerServeCents)}
+          </span>
+        </ListRow>
+        <ListDivider />
+        <ListRow>
+          <span className="flex-1">Whole cake</span>
+          <span className="tabular-nums font-medium">{centsToDisplay(recipe.totalCents)}</span>
+        </ListRow>
+        <ListDivider />
+        <ListRow>
+          <span className="flex-1">Already in the pantry</span>
+          <span className="tabular-nums text-(--color-good)">
+            {centsToDisplay(recipe.pantryCents)}
+          </span>
+        </ListRow>
+        <ListDivider />
+        <ListRow>
+          <span className="flex-1">Buying just for this cake</span>
+          <span className="tabular-nums font-medium">{centsToDisplay(recipe.buyingCents)}</span>
+        </ListRow>
+      </ListGroup>
+
+      <SectionHeader>In the book</SectionHeader>
+      <ListGroup>
+        <ListRow>
+          <span className="flex-1">Photographed</span>
+          <span className="text-(--color-ink-muted)">{dateFormatter.format(recipe.createdAt)}</span>
+        </ListRow>
+        <ListDivider />
+        <ListRow>
+          <span className="flex-1">Last baked</span>
+          <span className="text-(--color-ink-muted)">
+            {recipe.lastBakedAt ? dateFormatter.format(recipe.lastBakedAt) : "Never"}
+          </span>
+        </ListRow>
+        <ListDivider />
+        <ListRow>
+          <span className="flex-1">Baked</span>
+          <span className="text-(--color-ink-muted)">
+            {recipe.bakeCount} {recipe.bakeCount === 1 ? "time" : "times"}
+          </span>
+        </ListRow>
+        <ListDivider />
+        <form action={handleMarkBaked}>
           <button
             type="submit"
-            className="w-full rounded-full bg-(--color-accent) px-4 py-2.5 text-sm font-medium text-white"
+            className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left"
           >
-            Add to shopping list
+            <span className={`flex-1 ${recipe.bakedToday ? "text-(--color-good)" : ""}`}>
+              {recipe.bakedToday ? "Logged for today ✓" : "Mark baked today"}
+            </span>
           </button>
         </form>
-        <Link
-          href={`/recipes/${id}/breakdown?serves=${recipe.targetServes}`}
-          className="flex-1 rounded-full border border-(--color-border) px-4 py-2.5 text-center text-sm font-medium"
-        >
-          Cost breakdown
-        </Link>
+      </ListGroup>
+
+      <SectionHeader>Ingredients · {recipe.ingredients.length}</SectionHeader>
+      <ListGroup>
+        {recipe.ingredients.map((ing, i) => (
+          <div key={ing.id}>
+            {i > 0 && <ListDivider />}
+            <IngredientRow ingredient={ing} />
+          </div>
+        ))}
+      </ListGroup>
+
+      {topBreakdownItems.length > 0 && (
+        <>
+          <SectionHeader>Where the money goes</SectionHeader>
+          <ListGroup className="p-4">
+            <ul className="flex flex-col gap-3">
+              {topBreakdownItems.map((item) => (
+                <li key={item.ingredientId}>
+                  <div className="mb-1 flex items-baseline justify-between text-sm">
+                    <span className="truncate font-medium">{item.displayName}</span>
+                    <span className="shrink-0 tabular-nums text-(--color-ink-muted)">
+                      {centsToDisplay(item.costCents)} · {Math.round(item.shareOfTotal * 100)}%
+                    </span>
+                  </div>
+                  <CostShareBar share={item.shareOfTotal} />
+                </li>
+              ))}
+            </ul>
+
+            {breakdown.totalPotentialSavingsCents > 0 && (
+              <div className="mt-4 rounded-xl border border-(--color-good) p-3">
+                <p className="text-sm font-medium text-(--color-good)">
+                  Could save {centsToDisplay(breakdown.totalPotentialSavingsCents)} with cheaper alternatives
+                </p>
+                <p className="mt-1 text-xs text-(--color-ink-muted)">
+                  Tap an ingredient above to swap to the suggested option.
+                </p>
+              </div>
+            )}
+          </ListGroup>
+        </>
+      )}
+
+      <SectionHeader>Method</SectionHeader>
+      <ListGroup>
+        {recipe.methodSteps.length === 0 ? (
+          <ListRow>
+            <span className="text-(--color-ink-muted)">No method steps recorded yet.</span>
+          </ListRow>
+        ) : (
+          recipe.methodSteps.map((step, i) => (
+            <div key={i}>
+              {i > 0 && <ListDivider inset={44} />}
+              <ListRow>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-(--color-surface-alt) text-xs font-semibold">
+                  {i + 1}
+                </span>
+                <span>{step}</span>
+              </ListRow>
+            </div>
+          ))
+        )}
+      </ListGroup>
+
+      <StickyActionBar>
+        <form action={handleAddToOrder} className="flex-1">
+          <button
+            type="submit"
+            className="w-full rounded-full bg-(--color-accent) px-4 py-2.5 text-center text-sm font-medium text-white"
+          >
+            Add to order
+          </button>
+        </form>
       </StickyActionBar>
     </>
   );

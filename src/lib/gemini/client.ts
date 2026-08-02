@@ -35,7 +35,7 @@ interface GenerateJsonParams<T> {
   kind: GeminiUsageKind;
   systemPrompt: string;
   prompt: string;
-  image?: ImagePart;
+  images?: ImagePart[];
   schema: ZodType<T>;
 }
 
@@ -49,13 +49,13 @@ async function callModel(
   model: string,
   systemPrompt: string,
   prompt: string,
-  image?: ImagePart
+  images?: ImagePart[]
 ): Promise<string> {
   const genai = getClient();
   const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
     { text: prompt },
   ];
-  if (image) {
+  for (const image of images ?? []) {
     parts.push({
       inlineData: { mimeType: image.mimeType, data: image.data.toString("base64") },
     });
@@ -95,13 +95,13 @@ function isRetryableError(err: unknown): boolean {
  * failure (both models exhausted).
  */
 export async function generateJson<T>(params: GenerateJsonParams<T>): Promise<T> {
-  const { userId, kind, systemPrompt, prompt, image, schema } = params;
+  const { userId, kind, systemPrompt, prompt, images, schema } = params;
 
   let lastError: unknown = null;
 
   for (const model of MODEL_CHAIN) {
     try {
-      const raw = await callModel(model, systemPrompt, prompt, image);
+      const raw = await callModel(model, systemPrompt, prompt, images);
       const parsed = JSON.parse(extractJson(raw));
       const result = schema.safeParse(parsed);
 

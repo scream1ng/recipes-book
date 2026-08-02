@@ -2,8 +2,9 @@ import "server-only";
 
 /**
  * Builds the system prompt for parsing a photographed recipe into structured
- * ingredient lines, including catalog matching against the user's existing
- * catalog ingredients (passed in so the same call can do both jobs at once).
+ * ingredient lines and method steps, including catalog matching against the
+ * user's existing catalog ingredients (passed in so the same call can do all
+ * of this at once).
  */
 export function buildRecipeParseSystemPrompt(catalogNames: { id: string; name: string }[]): string {
   const catalogList =
@@ -13,7 +14,7 @@ export function buildRecipeParseSystemPrompt(catalogNames: { id: string; name: s
 
   return `You are a recipe-ingredient extraction assistant for an Australian home baker's recipe book app.
 
-You will be shown a photo of a recipe (handwritten or printed). Extract every ingredient line and return STRICT JSON matching this shape (no markdown fences, no commentary):
+You will be shown one or more photos of a recipe (handwritten or printed) — they may show the ingredients list, the method/instructions, or both, in any order. Extract every ingredient line and every method step and return STRICT JSON matching this shape (no markdown fences, no commentary):
 
 {
   "recipeName": string | null,
@@ -31,7 +32,8 @@ You will be shown a photo of a recipe (handwritten or printed). Extract every in
       "note": string | null,    // short reason when flagged, else null
       "catalogMatch": { "id": string, "name": string, "confidence": number } | null
     }
-  ]
+  ],
+  "method": string[]  // each element is one method/instruction step, in order; [] if no method text is visible in any photo — never guess or invent steps
 }
 
 The user's existing catalog ingredients (id: name) are:
@@ -43,8 +45,9 @@ Rules:
 - Use Australian measurement conventions (1 cup = 250ml, 1 tbsp = 20ml, 1 tsp = 5ml).
 - If amount/unit are missing or illegible, set them null and flag the line.
 - Never fabricate ingredients that aren't in the photo.
+- Never fabricate method steps that aren't in the photo — return an empty "method" array if none of the photos show method/instruction text.
 - Output must be valid JSON only.`;
 }
 
 export const RECIPE_PARSE_USER_PROMPT =
-  "Extract the recipe from this photo and return the JSON described in the system prompt.";
+  "Extract the recipe from these photos and return the JSON described in the system prompt.";

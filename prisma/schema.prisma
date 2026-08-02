@@ -119,6 +119,7 @@ model CatalogIngredient {
   gramsPerMl              Float?
   gramsPerBunch           Float?
   isPantryStaple          Boolean            @default(false)
+  onHand                  Boolean            @default(false)
   selectedProductOptionId String?            @unique
 
   user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -186,13 +187,17 @@ enum RecipeSourceType {
 }
 
 model Recipe {
-  id         String           @id @default(cuid())
-  userId     String
-  name       String
-  tag        String?
-  minutes    Int?
-  baseServes Int              @default(4)
-  sourceType RecipeSourceType
+  id           String           @id @default(cuid())
+  userId       String
+  name         String
+  tag          String?
+  minutes      Int?
+  baseServes   Int              @default(4)
+  sourceType   RecipeSourceType
+  orderQty     Int              @default(0)
+  methodSteps  String[]         @default([])
+  lastBakedAt  DateTime?
+  bakeCount    Int              @default(0)
 
   user              User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   ingredients       RecipeIngredient[]

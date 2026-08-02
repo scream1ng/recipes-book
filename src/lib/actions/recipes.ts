@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { lineCostCents, scaleQty, costPerServe } from "@/lib/pricing/cost";
+import { lineCostCents, scaleQty, costPerServe, pantryCostCents } from "@/lib/pricing/cost";
 import { findCheaperAlternative } from "@/lib/pricing/savings";
 import type { RecipeSourceType } from "@/generated/prisma";
 
@@ -32,6 +32,7 @@ function summarizeRecipe(recipe: RecipeWithIngredients) {
     tag: recipe.tag,
     minutes: recipe.minutes,
     baseServes: recipe.baseServes,
+    orderQty: recipe.orderQty,
     ingredientCount: recipe.ingredients.length,
     totalCents,
     costPerServeCents: costPerServe(totalCents, recipe.baseServes),
@@ -74,7 +75,7 @@ function computeIngredientCosts(
       totalCents += costCents;
     }
 
-    return { ing, scaledQty, option, costCents };
+    return { ing, scaledQty, option, costCents, onHand: ing.catalogIngredient?.onHand ?? false };
   });
 
   return { lines, totalCents };
@@ -85,6 +86,7 @@ export async function getRecipe(id: string, serves?: number) {
   const recipe = await fetchRecipeWithIngredients(userId, id);
   const targetServes = serves ?? recipe.baseServes;
   const { lines, totalCents } = computeIngredientCosts(recipe.ingredients, recipe.baseServes, targetServes);
+  const pantryCents = pantryCostCents(lines);
 
   return {
     id: recipe.id,
@@ -94,8 +96,16 @@ export async function getRecipe(id: string, serves?: number) {
     baseServes: recipe.baseServes,
     targetServes,
     sourceType: recipe.sourceType,
+    createdAt: recipe.createdAt,
+    orderQty: recipe.orderQty,
+    methodSteps: recipe.methodSteps,
+    lastBakedAt: recipe.lastBakedAt,
+    bakeCount: recipe.bakeCount,
+    bakedToday: recipe.lastBakedAt != null && isSameDay(recipe.lastBakedAt, new Date()),
     totalCents,
     costPerServeCents: costPerServe(totalCents, targetServes),
+    pantryCents,
+    buyingCents: totalCents - pantryCents,
     ingredients: lines.map(({ ing, scaledQty, option, costCents }) => ({
       id: ing.id,
       displayName: ing.displayName,
@@ -141,6 +151,7 @@ export interface RecipeDraft {
   baseServes: number;
   sourceType: RecipeSourceType;
   ingredients: RecipeIngredientDraft[];
+  methodSteps?: string[];
 }
 
 /** Verifies every provided catalogIngredientId belongs to userId; throws otherwise. */
@@ -169,6 +180,7 @@ export async function createRecipe(draft: RecipeDraft) {
       minutes: draft.minutes ?? undefined,
       baseServes: draft.baseServes,
       sourceType: draft.sourceType,
+      methodSteps: draft.methodSteps ?? [],
       ingredients: {
         create: draft.ingredients.map((ing) => ({
           catalogIngredientId: ing.catalogIngredientId ?? undefined,
@@ -251,32 +263,7 @@ export async function deleteRecipe(id: string) {
   const existing = await prisma.recipe.findFirst({ where: { id, userId } });
   if (!existing) throw new Error("Recipe not found");
 
-  await prisma.$transaction(async (tx) => {
-    const contributions = await tx.shoppingListContribution.findMany({
-      where: { recipeId: id },
-    });
-
-    for (const contribution of contributions) {
-      await tx.shoppingListContribution.delete({ where: { id: contribution.id } });
-
-      const remaining = await tx.shoppingListContribution.aggregate({
-        where: { itemId: contribution.itemId },
-        _sum: { qtyCanonical: true },
-      });
-
-      const remainingQty = remaining._sum.qtyCanonical ?? 0;
-      if (remainingQty <= 0) {
-        await tx.shoppingListItem.delete({ where: { id: contribution.itemId } }).catch(() => {});
-      } else {
-        await tx.shoppingListItem.update({
-          where: { id: contribution.itemId },
-          data: { qtyCanonical: remainingQty },
-        });
-      }
-    }
-
-    await tx.recipe.delete({ where: { id } });
-  });
+  await prisma.recipe.delete({ where: { id } });
 
   revalidatePath("/recipes");
   revalidatePath("/list");
@@ -350,4 +337,30 @@ export async function applySwapSuggestion(catalogIngredientId: string, productOp
 
   revalidatePath("/recipes");
   revalidatePath("/list");
+}
+
+// ---------- markBakedToday ----------
+
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+/** Idempotent-per-day toggle: marks baked today, or un-marks if already marked today. */
+export async function markBakedToday(recipeId: string) {
+  const userId = await requireUser();
+  const recipe = await prisma.recipe.findFirst({ where: { id: recipeId, userId } });
+  if (!recipe) throw new Error("Recipe not found");
+
+  const now = new Date();
+  const alreadyToday = recipe.lastBakedAt != null && isSameDay(recipe.lastBakedAt, now);
+
+  await prisma.recipe.update({
+    where: { id: recipeId },
+    data: alreadyToday
+      ? { bakeCount: Math.max(0, recipe.bakeCount - 1), lastBakedAt: null }
+      : { bakeCount: recipe.bakeCount + 1, lastBakedAt: now },
+  });
+
+  revalidatePath("/recipes");
+  revalidatePath(`/recipes/${recipeId}`);
 }

@@ -3,12 +3,15 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import heicConvert from "heic-convert";
 import { requireUser } from "@/lib/auth";
-import { generateJson } from "@/lib/gemini/client";
+import { generateJson, type ImagePart } from "@/lib/gemini/client";
 import { recipeParseResultSchema } from "@/lib/gemini/schemas";
 import { buildRecipeParseSystemPrompt, RECIPE_PARSE_USER_PROMPT } from "@/lib/gemini/prompts/recipe-parse";
 import { prisma } from "@/lib/db";
 
 const MAX_BYTES = 15 * 1024 * 1024;
+// Images are sent to Gemini as base64 inlineData (~1.33x raw size), so budget
+// the raw-bytes cap for the encoded request rather than the file size itself.
+const MAX_TOTAL_BYTES = 15 * 1024 * 1024;
 
 function isHeic(file: File): boolean {
   const name = file.name.toLowerCase();
@@ -29,30 +32,44 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData().catch(() => null);
-  const file = formData?.get("image");
-  if (!file || !(file instanceof File)) {
-    return NextResponse.json({ error: "image file is required" }, { status: 400 });
+  const files = formData?.getAll("images").filter((f): f is File => f instanceof File) ?? [];
+  if (files.length === 0) {
+    return NextResponse.json({ error: "At least one image file is required" }, { status: 400 });
   }
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "Image too large (max 15MB)" }, { status: 413 });
-  }
-
-  // Image is held in memory for this request only and never written to disk
-  // or persisted anywhere — discarded once this handler returns.
-  let buffer = Buffer.from(await file.arrayBuffer());
-  let mimeType = file.type || "image/jpeg";
-
-  if (isHeic(file)) {
-    try {
-      const converted = await heicConvert({ buffer, format: "JPEG", quality: 0.92 });
-      buffer = Buffer.from(converted);
-      mimeType = "image/jpeg";
-    } catch {
-      return NextResponse.json(
-        { error: "Could not convert HEIC photo. Try exporting as JPEG and re-uploading." },
-        { status: 422 }
-      );
+  for (const file of files) {
+    if (file.size > MAX_BYTES) {
+      return NextResponse.json({ error: "Image too large (max 15MB)" }, { status: 413 });
     }
+  }
+  const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+  if (totalBytes > MAX_TOTAL_BYTES) {
+    return NextResponse.json(
+      { error: "Photos are too large combined (max 15MB total). Try fewer or smaller photos." },
+      { status: 413 }
+    );
+  }
+
+  // Images are held in memory for this request only and never written to
+  // disk or persisted anywhere — discarded once this handler returns.
+  const images: ImagePart[] = [];
+  for (const file of files) {
+    let buffer = Buffer.from(await file.arrayBuffer());
+    let mimeType = file.type || "image/jpeg";
+
+    if (isHeic(file)) {
+      try {
+        const converted = await heicConvert({ buffer, format: "JPEG", quality: 0.92 });
+        buffer = Buffer.from(converted);
+        mimeType = "image/jpeg";
+      } catch {
+        return NextResponse.json(
+          { error: "Could not convert HEIC photo. Try exporting as JPEG and re-uploading." },
+          { status: 422 }
+        );
+      }
+    }
+
+    images.push({ mimeType, data: buffer });
   }
 
   const catalog = await prisma.catalogIngredient.findMany({
@@ -66,7 +83,7 @@ export async function POST(request: Request) {
       kind: "RECIPE_PARSE",
       systemPrompt: buildRecipeParseSystemPrompt(catalog),
       prompt: RECIPE_PARSE_USER_PROMPT,
-      image: { mimeType, data: buffer },
+      images,
       schema: recipeParseResultSchema,
     });
 

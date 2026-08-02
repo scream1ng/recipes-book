@@ -1,6 +1,9 @@
 import { getShoppingList, clearCheckedItems } from "@/lib/actions/list";
 import { centsToDisplay } from "@/lib/money";
 import { ListItemRow } from "@/components/list/ListItemRow";
+import { NavBar } from "@/components/ui/NavBar";
+import { ListGroup, ListDivider } from "@/components/ui/ListGroup";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
 const CATEGORY_LABELS: Record<string, string> = {
   MEAT_POULTRY: "Meat & Poultry",
@@ -10,6 +13,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   FROZEN: "Frozen",
   BAKERY: "Bakery",
   OTHER: "Other",
+  MANUAL: "Manual items",
 };
 
 export default async function ShoppingListPage() {
@@ -22,50 +26,65 @@ export default async function ShoppingListPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between">
-        <h1 className="font-serif-heading text-3xl">Shopping list</h1>
-        <form action={handleClearChecked}>
-          <button type="submit" className="text-sm text-(--color-ink-muted) underline">
-            Clear checked
-          </button>
-        </form>
+    <>
+      <div className="-mx-4" style={{ marginTop: "calc(-1.5rem - env(safe-area-inset-top))" }}>
+        <NavBar
+          title="Shopping list"
+          right={
+            <form action={handleClearChecked}>
+              <button type="submit" className="text-[15px] text-(--color-accent)">
+                Clear
+              </button>
+            </form>
+          }
+        />
       </div>
 
       {categories.length === 0 ? (
         <p className="mt-12 text-center text-(--color-ink-muted)">
-          Your list is empty. Add a recipe from the Library to get started.
+          Your list is empty. Set an order quantity on a recipe to get started.
         </p>
       ) : (
         categories.map((category) => {
           const rows = grouped[category];
           const subtotal = rows.reduce((sum, r) => sum + r.totalCents, 0);
           return (
-            <div key={category} className="flex flex-col gap-2">
-              <div className="flex items-center justify-between text-sm font-medium text-(--color-ink-muted)">
-                <span>{CATEGORY_LABELS[category] ?? category}</span>
-                <span>{centsToDisplay(subtotal)}</span>
+            <div key={category}>
+              <div className="flex items-center justify-between pl-4 pt-6 pb-[7px]">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-(--color-ink-muted)">
+                  {CATEGORY_LABELS[category] ?? category}
+                </h2>
+                <span className="tabular-nums pr-4 text-xs text-(--color-ink-muted)">
+                  {centsToDisplay(subtotal)}
+                </span>
               </div>
-              <ul className="flex flex-col gap-2">
-                {rows.map((row) => (
-                  <ListItemRow key={row.id} row={row} />
+              <ListGroup>
+                {rows.map((row, i) => (
+                  <div key={row.id}>
+                    {i > 0 && <ListDivider />}
+                    <ListItemRow row={row} />
+                  </div>
                 ))}
-              </ul>
+              </ListGroup>
             </div>
           );
         })
       )}
 
-      <div className="rounded-2xl border border-(--color-border) bg-(--color-surface-alt) p-4">
-        <div className="flex items-center justify-between">
+      <SectionHeader>Total</SectionHeader>
+      <ListGroup>
+        <div className="flex items-center justify-between px-4 py-3">
           <span className="text-(--color-ink-muted)">Basket total</span>
-          <span className="text-lg font-semibold">{centsToDisplay(basketTotalCents)}</span>
+          <span className="tabular-nums text-lg font-semibold">
+            {centsToDisplay(basketTotalCents)}
+          </span>
         </div>
-        <div className="flex items-center justify-between text-sm">
+        <ListDivider />
+        <div className="flex items-center justify-between px-4 py-3 text-sm">
           <span className="text-(--color-ink-muted)">Left to buy</span>
-          <span>{centsToDisplay(leftToBuyTotalCents)}</span>
+          <span className="tabular-nums">{centsToDisplay(leftToBuyTotalCents)}</span>
         </div>
-      </div>
-    </div>
+      </ListGroup>
+    </>
   );
 }

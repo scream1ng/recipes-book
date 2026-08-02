@@ -4,25 +4,27 @@ const PRESETS = [1, 2, 4, 6, 8];
 
 export function ServesStepper({ recipeId, current }: { recipeId: string; current: number }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {PRESETS.map((n) => (
-        <Link
-          key={n}
-          href={`/recipes/${recipeId}?serves=${n}`}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium ${
-            current === n
-              ? "bg-(--color-accent) text-white"
-              : "border border-(--color-border) bg-(--color-surface) text-(--color-ink)"
-          }`}
-        >
-          {n}
-        </Link>
-      ))}
-      {!PRESETS.includes(current) && (
-        <span className="rounded-full bg-(--color-accent) px-4 py-1.5 text-sm font-medium text-white">
-          {current}
-        </span>
-      )}
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-0.5 rounded-full bg-(--color-surface-alt) p-1">
+        {PRESETS.map((n) => (
+          <Link
+            key={n}
+            href={`/recipes/${recipeId}?serves=${n}`}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium tabular-nums ${
+              current === n
+                ? "bg-(--color-surface) text-(--color-ink) shadow-sm"
+                : "text-(--color-ink-muted)"
+            }`}
+          >
+            {n}
+          </Link>
+        ))}
+        {!PRESETS.includes(current) && (
+          <span className="rounded-full bg-(--color-surface) px-4 py-1.5 text-sm font-medium tabular-nums text-(--color-ink) shadow-sm">
+            {current}
+          </span>
+        )}
+      </div>
       <form action={`/recipes/${recipeId}`} className="flex items-center gap-1">
         <input
           type="number"
