@@ -18,7 +18,7 @@ export function SignUpForm() {
           name="email"
           required
           autoComplete="email"
-          className="rounded-lg border border-(--color-border) px-3 py-2"
+          className="rounded-lg border border-(--color-border) px-3 py-2 text-base"
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
@@ -29,7 +29,7 @@ export function SignUpForm() {
           required
           minLength={8}
           autoComplete="new-password"
-          className="rounded-lg border border-(--color-border) px-3 py-2"
+          className="rounded-lg border border-(--color-border) px-3 py-2 text-base"
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
@@ -40,7 +40,7 @@ export function SignUpForm() {
           required
           minLength={8}
           autoComplete="new-password"
-          className="rounded-lg border border-(--color-border) px-3 py-2"
+          className="rounded-lg border border-(--color-border) px-3 py-2 text-base"
         />
       </label>
 

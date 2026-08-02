@@ -122,6 +122,7 @@ export async function getRecipe(id: string, serves?: number) {
             productName: option.productName,
             packLabel: option.packLabel,
             priceUpdatedAt: option.priceUpdatedAt,
+            unitPriceCents: option.packQty > 0 ? option.priceCents / option.packQty : null,
           }
         : null,
       costCents,
@@ -357,8 +358,12 @@ export async function markBakedToday(recipeId: string) {
   await prisma.recipe.update({
     where: { id: recipeId },
     data: alreadyToday
-      ? { bakeCount: Math.max(0, recipe.bakeCount - 1), lastBakedAt: null }
-      : { bakeCount: recipe.bakeCount + 1, lastBakedAt: now },
+      ? { bakeCount: Math.max(0, recipe.bakeCount - 1), lastBakedAt: recipe.previousBakedAt }
+      : {
+          bakeCount: recipe.bakeCount + 1,
+          lastBakedAt: now,
+          previousBakedAt: recipe.lastBakedAt,
+        },
   });
 
   revalidatePath("/recipes");

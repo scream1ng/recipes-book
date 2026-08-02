@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
@@ -66,7 +67,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
  * ensuring a UserSettings row exists (created lazily on first use).
  * Throws if there is no authenticated session.
  */
-export async function requireUser() {
+export const requireUser = cache(async function requireUser() {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) {
@@ -80,7 +81,7 @@ export async function requireUser() {
   });
 
   return userId;
-}
+});
 
 export const authConfigured = true;
 export const googleConfigured = hasGoogleCreds;

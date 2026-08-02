@@ -2,8 +2,10 @@ import Link from "next/link";
 import { getPantryIngredients } from "@/lib/actions/catalog";
 import { getSettings } from "@/lib/actions/settings";
 import { NavBar } from "@/components/ui/NavBar";
-import { ListGroup, ListDivider } from "@/components/ui/ListGroup";
+import { ListGroup, ListRow, ListDivider } from "@/components/ui/ListGroup";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { PantryRow } from "@/components/pantry/PantryRow";
+import { Icon } from "@/components/ui/Icon";
 
 const CATEGORY_LABELS: Record<string, string> = {
   MEAT_POULTRY: "Meat & Poultry",
@@ -21,16 +23,7 @@ export default async function PantryPage() {
 
   return (
     <>
-      <div className="-mx-4" style={{ marginTop: "calc(-1.5rem - env(safe-area-inset-top))" }}>
-        <NavBar
-          title="Ingredients"
-          right={
-            <Link href="/settings" className="text-[15px] text-(--color-accent)">
-              Settings
-            </Link>
-          }
-        />
-      </div>
+      <NavBar title="Ingredients" />
 
       {categories.length === 0 ? (
         <p className="mt-12 text-center text-(--color-ink-muted)">
@@ -43,7 +36,7 @@ export default async function PantryPage() {
           return (
             <div key={category}>
               <div className="flex items-center justify-between pl-4 pt-6 pb-[7px]">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-(--color-ink-muted)">
+                <h2 className="text-[13px] font-semibold text-(--color-ink-muted)">
                   {CATEGORY_LABELS[category] ?? category}
                 </h2>
                 <span className="pr-4 text-xs text-(--color-ink-muted)">
@@ -62,6 +55,16 @@ export default async function PantryPage() {
           );
         })
       )}
+
+      <SectionHeader>More</SectionHeader>
+      <ListGroup>
+        <Link href="/settings">
+          <ListRow interactive>
+            <span className="flex-1">Settings</span>
+            <Icon name="chevron-right" size={16} className="text-(--color-ink-muted)" />
+          </ListRow>
+        </Link>
+      </ListGroup>
     </>
   );
 }

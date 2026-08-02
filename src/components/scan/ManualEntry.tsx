@@ -6,6 +6,17 @@ import { createRecipe, type RecipeIngredientDraft } from "@/lib/actions/recipes"
 import { findOrCreateCatalogIngredient } from "@/lib/actions/catalog";
 import { normalizeToCanonical } from "@/lib/units/normalize";
 import { centsToDisplay } from "@/lib/money";
+import type { IngredientCategory } from "@/generated/prisma";
+
+const CATEGORY_LABELS: Record<string, string> = {
+  MEAT_POULTRY: "Meat & Poultry",
+  PRODUCE: "Produce",
+  PANTRY: "Pantry",
+  DAIRY_EGGS: "Dairy & Eggs",
+  FROZEN: "Frozen",
+  BAKERY: "Bakery",
+  OTHER: "Other",
+};
 
 interface CatalogSuggestion {
   id: string;
@@ -26,6 +37,7 @@ interface DraftLine {
   unit: string;
   catalogIngredientId?: string;
   canonicalUnit: "MASS_G" | "VOLUME_ML" | "COUNT";
+  category: string;
 }
 
 export function ManualEntry({ recipeName: initialName }: { recipeName?: string }) {
@@ -34,6 +46,7 @@ export function ManualEntry({ recipeName: initialName }: { recipeName?: string }
   const [query, setQuery] = useState("");
   const [amount, setAmount] = useState("");
   const [unit, setUnit] = useState("g");
+  const [category, setCategory] = useState("OTHER");
   const [catalogSuggestions, setCatalogSuggestions] = useState<CatalogSuggestion[]>([]);
   const [colesSuggestions, setColesSuggestions] = useState<ColesSuggestion[]>([]);
   const [selected, setSelected] = useState<CatalogSuggestion | null>(null);
@@ -69,11 +82,13 @@ export function ManualEntry({ recipeName: initialName }: { recipeName?: string }
         unit,
         catalogIngredientId: selected?.id,
         canonicalUnit: selected?.canonicalUnit ?? "MASS_G",
+        category: selected?.category ?? category,
       },
     ]);
     setQuery("");
     setAmount("");
     setSelected(null);
+    setCategory("OTHER");
     setCatalogSuggestions([]);
     setColesSuggestions([]);
   }
@@ -89,7 +104,7 @@ export function ManualEntry({ recipeName: initialName }: { recipeName?: string }
         if (!catalogIngredientId) {
           const created = await findOrCreateCatalogIngredient({
             name: line.displayName,
-            category: "OTHER",
+            category: line.category as IngredientCategory,
             canonicalUnit: line.canonicalUnit,
           });
           catalogIngredientId = created.id;
@@ -165,6 +180,18 @@ export function ManualEntry({ recipeName: initialName }: { recipeName?: string }
           </select>
         </div>
 
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="mt-2 w-full rounded-lg border border-(--color-border) px-2 py-1.5 text-sm"
+        >
+          {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+
         {(catalogSuggestions.length > 0 || colesSuggestions.length > 0) && (
           <ul className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-(--color-border)">
             {catalogSuggestions.map((s) => (
@@ -177,7 +204,7 @@ export function ManualEntry({ recipeName: initialName }: { recipeName?: string }
                     setCatalogSuggestions([]);
                     setColesSuggestions([]);
                   }}
-                  className="block w-full px-3 py-1.5 text-left text-sm hover:bg-(--color-surface-alt)"
+                  className="block w-full px-3 py-1.5 text-left text-sm active:bg-(--color-surface-alt)"
                 >
                   {s.name} <span className="text-(--color-ink-muted)">(your catalog)</span>
                 </button>
@@ -191,7 +218,7 @@ export function ManualEntry({ recipeName: initialName }: { recipeName?: string }
                     setQuery(s.name);
                     setColesSuggestions([]);
                   }}
-                  className="block w-full px-3 py-1.5 text-left text-sm hover:bg-(--color-surface-alt)"
+                  className="block w-full px-3 py-1.5 text-left text-sm active:bg-(--color-surface-alt)"
                 >
                   {s.name}{" "}
                   <span className="text-(--color-ink-muted)">
@@ -223,7 +250,7 @@ export function ManualEntry({ recipeName: initialName }: { recipeName?: string }
               <button
                 type="button"
                 onClick={() => setLines((prev) => prev.filter((_, j) => j !== i))}
-                className="text-(--color-ink-muted)"
+                className="text-(--color-ink-muted) active:opacity-60"
               >
                 remove
               </button>

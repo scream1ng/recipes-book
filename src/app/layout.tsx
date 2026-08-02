@@ -13,16 +13,16 @@ const publicSans = Public_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Recipe Ledger",
+  title: "Recipes Book",
   description: "Your recipes, priced.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Recipe Ledger",
+    title: "Recipes Book",
   },
   icons: {
-    apple: "/icons/apple-touch-icon.png",
+    apple: "/icons/apple-touch-icon.png?v=5",
   },
 };
 

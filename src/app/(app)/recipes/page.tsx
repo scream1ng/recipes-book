@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { listRecipes } from "@/lib/actions/recipes";
-import { centsToDisplay } from "@/lib/money";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
 import { NavBar } from "@/components/ui/NavBar";
-import { ListGroup, ListRow, ListDivider } from "@/components/ui/ListGroup";
+import { ListGroup, ListDivider } from "@/components/ui/ListGroup";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { RecipeListRow } from "@/components/recipe/RecipeListRow";
 
 // Phase 2 may add a persisted `tintHex` per recipe — until then, derive a
 // deterministic pastel tint from the recipe id so avatars aren't all identical.
@@ -20,9 +20,7 @@ export default async function LibraryPage() {
 
   return (
     <>
-      <div className="-mx-4" style={{ marginTop: "calc(-1.5rem - env(safe-area-inset-top))" }}>
-        <NavBar title="Recipes" />
-      </div>
+      <NavBar title="Recipes" />
 
       {recipes.length === 0 ? (
         <p className="mt-12 text-center text-(--color-ink-muted)">
@@ -35,34 +33,7 @@ export default async function LibraryPage() {
             {recipes.map((recipe, i) => (
               <div key={recipe.id}>
                 {i > 0 && <ListDivider inset={76} />}
-                <Link href={`/recipes/${recipe.id}`}>
-                  <ListRow>
-                    <span
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-(--color-ink)"
-                      style={{ background: tintFor(recipe.id) }}
-                      aria-hidden
-                    >
-                      {recipe.name.charAt(0).toUpperCase()}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="recipe-name truncate text-lg">{recipe.name}</p>
-                      <p className="truncate text-xs text-(--color-ink-muted)">
-                        {recipe.tag ? `${recipe.tag} · ` : ""}
-                        {recipe.ingredientCount} ingredients
-                        {recipe.minutes ? ` · ${recipe.minutes} min` : ""} · serves{" "}
-                        {recipe.baseServes}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="tabular-nums font-medium">
-                        {centsToDisplay(recipe.totalCents)}
-                      </p>
-                      <p className="tabular-nums text-xs text-(--color-ink-muted)">
-                        {centsToDisplay(recipe.costPerServeCents)}/serve
-                      </p>
-                    </div>
-                  </ListRow>
-                </Link>
+                <RecipeListRow recipe={recipe} tint={tintFor(recipe.id)} />
               </div>
             ))}
           </ListGroup>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
+import { Spinner } from "@/components/ui/Spinner";
 
 type Status = "idle" | "uploading" | "error";
 
@@ -15,7 +16,6 @@ interface Photo {
 
 export function ScanCapture() {
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -78,12 +78,8 @@ export function ScanCapture() {
             className="text-(--color-accent) motion-safe:animate-pulse"
           />
         </div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-(--color-ink-muted)">
-          Reading your recipe…
-        </p>
-        <div className="h-1.5 w-40 overflow-hidden rounded-full bg-(--color-surface-alt)">
-          <div className="h-full w-full rounded-full bg-(--color-accent) motion-safe:animate-pulse" />
-        </div>
+        <p className="text-sm font-semibold text-(--color-ink-muted)">Reading your recipe…</p>
+        <Spinner size={24} />
       </div>
     );
   }
@@ -113,9 +109,11 @@ export function ScanCapture() {
                 type="button"
                 onClick={() => removePhoto(i)}
                 aria-label={`Remove photo ${i + 1}`}
-                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-(--color-ink)/80 text-xs text-white"
+                className="absolute -right-3 -top-3 flex h-8 w-8 items-center justify-center active:opacity-60"
               >
-                ✕
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-(--color-ink)/80 text-white">
+                  <Icon name="xmark" size={11} />
+                </span>
               </button>
             </div>
           ))}
@@ -123,13 +121,20 @@ export function ScanCapture() {
       )}
 
       {photos.length < MAX_PHOTOS && (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="rounded-full bg-(--color-accent) px-6 py-3 font-medium text-white"
-        >
+        <label className="relative rounded-full bg-(--color-accent) px-6 py-3 font-medium text-white">
           {photos.length === 0 ? "Take photo" : "Add another photo"}
-        </button>
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) addPhoto(file);
+              e.target.value = "";
+            }}
+          />
+        </label>
       )}
 
       {photos.length > 0 && (
@@ -143,19 +148,6 @@ export function ScanCapture() {
       )}
 
       {error && <p className="max-w-xs text-sm text-(--color-accent-dark)">{error}</p>}
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) addPhoto(file);
-          e.target.value = "";
-        }}
-      />
     </div>
   );
 }

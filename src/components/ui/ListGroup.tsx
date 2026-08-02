@@ -15,12 +15,18 @@ export function ListGroup({
 export function ListRow({
   children,
   className = "",
+  interactive = false,
 }: {
   children: React.ReactNode;
   className?: string;
+  interactive?: boolean;
 }) {
   return (
-    <div className={`flex min-h-[48px] items-center gap-3 px-4 py-2 ${className}`}>
+    <div
+      className={`flex min-h-[48px] items-center gap-3 px-4 py-2 ${
+        interactive ? "active:bg-(--color-surface-alt)" : ""
+      } ${className}`}
+    >
       {children}
     </div>
   );

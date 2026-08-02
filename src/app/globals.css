@@ -11,6 +11,7 @@
   --color-accent-dark: #A8456A;
   --color-accent-soft: #F2A9BE;
   --color-good: #6F8F73;
+  --color-destructive: #D33B3B;
   --color-coles: #E0402F;
   --color-woolies: #3E8E4F;
 }
@@ -26,21 +27,41 @@
   --color-accent-dark: var(--color-accent-dark);
   --color-accent-soft: var(--color-accent-soft);
   --color-good: var(--color-good);
+  --color-destructive: var(--color-destructive);
   --color-coles: var(--color-coles);
   --color-woolies: var(--color-woolies);
   --font-sans: var(--font-public-sans);
   --font-serif: var(--font-newsreader);
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-public-sans), -apple-system, "SF Pro Text", system-ui, sans-serif;
+  touch-action: manipulation;
+  overscroll-behavior-y: contain;
+  min-height: 100vh;
 }
 
 /* Recipe names only — screen titles, headers, and nav use the sans stack above. */
 .recipe-name {
   font-family: var(--font-newsreader), Georgia, serif;
+}
+
+/* Press feedback for filled primary buttons app-wide, regardless of file. */
+[class*="bg-(--color-accent)"]:not(:disabled):active {
+  opacity: 0.7;
+}
+
+/* Press feedback for secondary/outline buttons and links app-wide. */
+button[class*="border-(--color-border)"]:not(:disabled):active,
+a[class*="border-(--color-border)"]:active {
+  background: var(--color-surface-alt);
 }
 
 :root {
@@ -55,6 +76,24 @@ body {
   }
   to {
     opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
     transform: translateY(0);
   }
 }

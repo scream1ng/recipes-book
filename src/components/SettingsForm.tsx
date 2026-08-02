@@ -2,6 +2,10 @@
 
 import { useTransition } from "react";
 import { updateSettings } from "@/lib/actions/settings";
+import { ListGroup, ListRow, ListDivider } from "@/components/ui/ListGroup";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { Toggle } from "@/components/ui/Toggle";
+import { Icon } from "@/components/ui/Icon";
 
 interface Settings {
   storePreference: "COLES" | "WOOLWORTHS" | "CHEAPEST_OF_BOTH";
@@ -28,93 +32,84 @@ export function SettingsForm({ settings }: { settings: Settings }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <section>
-        <h2 className="mb-2 text-lg">Store preference</h2>
-        <div className="flex flex-col gap-2">
-          {STORE_OPTIONS.map((opt) => (
-            <label
-              key={opt.value}
-              className="flex items-center gap-2 rounded-xl border border-(--color-border) bg-(--color-surface) p-3"
-            >
-              <input
-                type="radio"
-                name="storePreference"
-                checked={settings.storePreference === opt.value}
+    <>
+      <SectionHeader>Store preference</SectionHeader>
+      <ListGroup>
+        {STORE_OPTIONS.map((opt, i) => (
+          <div key={opt.value}>
+            {i > 0 && <ListDivider />}
+            <ListRow interactive>
+              <button
+                type="button"
                 disabled={isPending}
-                onChange={() => set("storePreference", opt.value)}
-                className="accent-(--color-accent)"
-              />
-              {opt.label}
-            </label>
-          ))}
-        </div>
-      </section>
+                onClick={() => set("storePreference", opt.value)}
+                className="flex min-h-11 flex-1 items-center justify-between text-left"
+              >
+                {opt.label}
+                {settings.storePreference === opt.value && (
+                  <Icon name="checkmark" size={18} className="text-(--color-accent)" />
+                )}
+              </button>
+            </ListRow>
+          </div>
+        ))}
+      </ListGroup>
 
-      <section className="flex flex-col gap-3">
-        <Toggle
-          label="Show unit prices"
-          checked={settings.showUnitPrices}
-          disabled={isPending}
-          onChange={(v) => set("showUnitPrices", v)}
-        />
-        <Toggle
-          label="Warn on stale prices"
-          checked={settings.warnStalePrices}
-          disabled={isPending}
-          onChange={(v) => set("warnStalePrices", v)}
-        />
+      <SectionHeader>Pricing</SectionHeader>
+      <ListGroup>
+        <ListRow>
+          <span className="flex-1">Show unit prices</span>
+          <Toggle
+            checked={settings.showUnitPrices}
+            disabled={isPending}
+            onChange={(v) => set("showUnitPrices", v)}
+            label="Show unit prices"
+          />
+        </ListRow>
+        <ListDivider />
+        <ListRow>
+          <span className="flex-1">Warn on stale prices</span>
+          <Toggle
+            checked={settings.warnStalePrices}
+            disabled={isPending}
+            onChange={(v) => set("warnStalePrices", v)}
+            label="Warn on stale prices"
+          />
+        </ListRow>
         {settings.warnStalePrices && (
-          <label className="flex items-center justify-between rounded-xl border border-(--color-border) bg-(--color-surface) p-3 text-sm">
-            Stale after (hours)
-            <input
-              type="number"
-              min={1}
-              defaultValue={settings.stalePriceHours}
-              disabled={isPending}
-              onBlur={(e) => set("stalePriceHours", Number(e.target.value) || settings.stalePriceHours)}
-              className="w-20 rounded-lg border border-(--color-border) px-2 py-1"
-            />
-          </label>
+          <>
+            <ListDivider />
+            <ListRow>
+              <span className="flex-1 text-sm">Stale after (hours)</span>
+              <input
+                type="number"
+                min={1}
+                defaultValue={settings.stalePriceHours}
+                disabled={isPending}
+                onBlur={(e) =>
+                  set("stalePriceHours", Number(e.target.value) || settings.stalePriceHours)
+                }
+                className="w-20 rounded-lg border border-(--color-border) px-2 py-1 text-base"
+              />
+            </ListRow>
+          </>
         )}
-        <Toggle
-          label="Round up part packs on shopping list"
-          checked={settings.roundUpPartPacks}
-          disabled={isPending}
-          onChange={(v) => set("roundUpPartPacks", v)}
-        />
-        <Toggle
-          label="Keep offline (coming later)"
-          checked={settings.keepOffline}
-          disabled
-          onChange={(v) => set("keepOffline", v)}
-        />
-      </section>
-    </div>
-  );
-}
-
-function Toggle({
-  label,
-  checked,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <label className="flex items-center justify-between rounded-xl border border-(--color-border) bg-(--color-surface) p-3 text-sm">
-      {label}
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-5 w-5 accent-(--color-accent)"
-      />
-    </label>
+        <ListDivider />
+        <ListRow>
+          <span className="flex-1">Round up part packs on shopping list</span>
+          <Toggle
+            checked={settings.roundUpPartPacks}
+            disabled={isPending}
+            onChange={(v) => set("roundUpPartPacks", v)}
+            label="Round up part packs on shopping list"
+          />
+        </ListRow>
+        <ListDivider />
+        <ListRow>
+          <span className="flex-1 text-(--color-ink-muted)">Keep offline (coming later)</span>
+          <Toggle checked={settings.keepOffline} disabled onChange={() => {}} label="Keep offline" />
+        </ListRow>
+      </ListGroup>
+    </>
   );
 }
