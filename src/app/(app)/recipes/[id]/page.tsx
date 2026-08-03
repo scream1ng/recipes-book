@@ -6,6 +6,7 @@ import { centsToDisplay } from "@/lib/money";
 import { ServesStepper } from "@/components/recipe/ServesStepper";
 import { IngredientRow } from "@/components/recipe/IngredientRow";
 import { RecipeHeaderActions } from "@/components/recipe/RecipeHeaderActions";
+import { DeleteRecipeButton } from "@/components/recipe/DeleteRecipeButton";
 import { CostShareBar } from "@/components/recipe/CostShareBar";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
 import { NavBar } from "@/components/ui/NavBar";
@@ -33,6 +34,7 @@ export default async function RecipeDetailPage({
   ]);
 
   const topBreakdownItems = breakdown.items.slice(0, 6);
+  const hasPricing = recipe.totalCents > 0;
 
   async function handleMarkBaked() {
     "use server";
@@ -47,76 +49,13 @@ export default async function RecipeDetailPage({
 
   return (
     <>
-      <NavBar title={recipe.name} left={<BackLink href="/recipes" label="Recipes" />} />
+      <NavBar left={<BackLink href="/recipes" label="Recipes" />} />
 
       <RecipeHeaderActions recipeId={id} name={recipe.name} tag={recipe.tag} />
 
       <div className="pt-4">
         <ServesStepper recipeId={id} current={recipe.targetServes} />
       </div>
-
-      <SectionHeader>Cost</SectionHeader>
-      <ListGroup>
-        <ListRow>
-          <span className="flex-1">Cost per slice</span>
-          <span className="tabular-nums font-semibold text-(--color-accent)">
-            {centsToDisplay(recipe.costPerServeCents)}
-          </span>
-        </ListRow>
-        <ListDivider />
-        <ListRow>
-          <span className="flex-1">Whole cake</span>
-          <span className="tabular-nums font-medium">{centsToDisplay(recipe.totalCents)}</span>
-        </ListRow>
-        <ListDivider />
-        <ListRow>
-          <span className="flex-1">Already in the pantry</span>
-          <span className="tabular-nums text-(--color-good)">
-            {centsToDisplay(recipe.pantryCents)}
-          </span>
-        </ListRow>
-        <ListDivider />
-        <ListRow>
-          <span className="flex-1">Buying just for this cake</span>
-          <span className="tabular-nums font-medium">{centsToDisplay(recipe.buyingCents)}</span>
-        </ListRow>
-      </ListGroup>
-
-      <SectionHeader>In the book</SectionHeader>
-      <ListGroup>
-        <ListRow>
-          <span className="flex-1">Photographed</span>
-          <span className="text-(--color-ink-muted)">{dateFormatter.format(recipe.createdAt)}</span>
-        </ListRow>
-        <ListDivider />
-        <ListRow>
-          <span className="flex-1">Last baked</span>
-          <span className="text-(--color-ink-muted)">
-            {recipe.lastBakedAt ? dateFormatter.format(recipe.lastBakedAt) : "Never"}
-          </span>
-        </ListRow>
-        <ListDivider />
-        <ListRow>
-          <span className="flex-1">Baked</span>
-          <span className="text-(--color-ink-muted)">
-            {recipe.bakeCount} {recipe.bakeCount === 1 ? "time" : "times"}
-          </span>
-        </ListRow>
-        <ListDivider />
-        <form action={handleMarkBaked}>
-          <button
-            type="submit"
-            className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left active:bg-(--color-surface-alt)"
-          >
-            <span
-              className={`flex flex-1 items-center gap-1.5 ${recipe.bakedToday ? "text-(--color-good)" : ""}`}
-            >
-              {recipe.bakedToday ? "Logged for today" : "Mark baked today"}
-              {recipe.bakedToday && <Icon name="checkmark" size={16} />}
-            </span>
-          </button>
-        </form>
-      </ListGroup>
 
       <SectionHeader>Ingredients · {recipe.ingredients.length}</SectionHeader>
       <ListGroup>
@@ -128,38 +67,6 @@ export default async function RecipeDetailPage({
         ))}
       </ListGroup>
 
-      {topBreakdownItems.length > 0 && (
-        <>
-          <SectionHeader>Where the money goes</SectionHeader>
-          <ListGroup className="p-4">
-            <ul className="flex flex-col gap-3">
-              {topBreakdownItems.map((item) => (
-                <li key={item.ingredientId}>
-                  <div className="mb-1 flex items-baseline justify-between text-sm">
-                    <span className="truncate font-medium">{item.displayName}</span>
-                    <span className="shrink-0 tabular-nums text-(--color-ink-muted)">
-                      {centsToDisplay(item.costCents)} · {Math.round(item.shareOfTotal * 100)}%
-                    </span>
-                  </div>
-                  <CostShareBar share={item.shareOfTotal} />
-                </li>
-              ))}
-            </ul>
-
-            {breakdown.totalPotentialSavingsCents > 0 && (
-              <div className="mt-4 rounded-xl border border-(--color-good) p-3">
-                <p className="text-sm font-medium text-(--color-good)">
-                  Could save {centsToDisplay(breakdown.totalPotentialSavingsCents)} with cheaper alternatives
-                </p>
-                <p className="mt-1 text-xs text-(--color-ink-muted)">
-                  Tap an ingredient above to swap to the suggested option.
-                </p>
-              </div>
-            )}
-          </ListGroup>
-        </>
-      )}
-
       <SectionHeader>Method</SectionHeader>
       <ListGroup>
         {recipe.methodSteps.length === 0 ? (
@@ -170,8 +77,8 @@ export default async function RecipeDetailPage({
           recipe.methodSteps.map((step, i) => (
             <div key={i}>
               {i > 0 && <ListDivider inset={44} />}
-              <ListRow>
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-(--color-surface-alt) text-xs font-semibold">
+              <ListRow className="items-start py-3">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-(--color-surface-alt) text-xs font-semibold">
                   {i + 1}
                 </span>
                 <span>{step}</span>
@@ -180,6 +87,110 @@ export default async function RecipeDetailPage({
           ))
         )}
       </ListGroup>
+
+      {hasPricing && (
+        <>
+          <SectionHeader>Cost</SectionHeader>
+          <ListGroup>
+            <ListRow>
+              <span className="flex-1">Cost per serving</span>
+              <span className="tabular-nums font-semibold text-(--color-accent)">
+                {centsToDisplay(recipe.costPerServeCents)}
+              </span>
+            </ListRow>
+            <ListDivider />
+            <ListRow>
+              <span className="flex-1">Total for {recipe.targetServes} servings</span>
+              <span className="tabular-nums font-medium">{centsToDisplay(recipe.totalCents)}</span>
+            </ListRow>
+            <ListDivider />
+            <ListRow>
+              <span className="flex-1">Already have</span>
+              <span className="tabular-nums text-(--color-good)">
+                {centsToDisplay(recipe.pantryCents)}
+              </span>
+            </ListRow>
+            <ListDivider />
+            <ListRow>
+              <span className="flex-1">Need to buy</span>
+              <span className="tabular-nums font-medium">{centsToDisplay(recipe.buyingCents)}</span>
+            </ListRow>
+          </ListGroup>
+
+          {topBreakdownItems.length > 0 && (
+            <>
+              <SectionHeader>Biggest costs</SectionHeader>
+              <ListGroup className="p-4">
+                <ul className="flex flex-col gap-3">
+                  {topBreakdownItems.map((item) => (
+                    <li key={item.ingredientId}>
+                      <div className="mb-1 flex items-baseline justify-between text-sm">
+                        <span className="truncate font-medium">{item.displayName}</span>
+                        <span className="shrink-0 tabular-nums text-(--color-ink-muted)">
+                          {centsToDisplay(item.costCents)} · {Math.round(item.shareOfTotal * 100)}%
+                        </span>
+                      </div>
+                      <CostShareBar share={item.shareOfTotal} />
+                    </li>
+                  ))}
+                </ul>
+
+                {breakdown.totalPotentialSavingsCents > 0 && (
+                  <div className="mt-4 rounded-xl border border-(--color-good) p-3">
+                    <p className="text-sm font-medium text-(--color-good)">
+                      Could save {centsToDisplay(breakdown.totalPotentialSavingsCents)} with cheaper alternatives
+                    </p>
+                    <p className="mt-1 text-xs text-(--color-ink-muted)">
+                      Tap an ingredient above to swap to the suggested option.
+                    </p>
+                  </div>
+                )}
+              </ListGroup>
+            </>
+          )}
+        </>
+      )}
+
+      <SectionHeader>In the book</SectionHeader>
+      <ListGroup>
+        <ListRow>
+          <span className="flex-1">Photographed</span>
+          <span className="text-(--color-ink-muted)">{dateFormatter.format(recipe.createdAt)}</span>
+        </ListRow>
+        <ListDivider />
+        <ListRow>
+          <span className="flex-1">Last cooked</span>
+          <span className="text-(--color-ink-muted)">
+            {recipe.lastBakedAt ? dateFormatter.format(recipe.lastBakedAt) : "Never"}
+          </span>
+        </ListRow>
+        <ListDivider />
+        <ListRow>
+          <span className="flex-1">Cooked</span>
+          <span className="text-(--color-ink-muted)">
+            {recipe.bakeCount} {recipe.bakeCount === 1 ? "time" : "times"}
+          </span>
+        </ListRow>
+        <ListDivider />
+        <form action={handleMarkBaked}>
+          <button
+            type="submit"
+            disabled={recipe.bakedToday}
+            className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left active:bg-(--color-surface-alt) disabled:active:bg-transparent"
+          >
+            <span
+              className={`flex flex-1 items-center gap-1.5 font-medium ${
+                recipe.bakedToday ? "text-(--color-good)" : "text-(--color-accent)"
+              }`}
+            >
+              {recipe.bakedToday ? "Cooked today" : "Mark cooked today"}
+              {recipe.bakedToday && <Icon name="checkmark" size={16} />}
+            </span>
+          </button>
+        </form>
+      </ListGroup>
+
+      <DeleteRecipeButton recipeId={id} name={recipe.name} />
 
       <StickyActionBar>
         <form action={handleAddToOrder} className="flex-1">

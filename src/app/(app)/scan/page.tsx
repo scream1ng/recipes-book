@@ -1,18 +1,17 @@
-import Link from "next/link";
 import { ScanCapture } from "@/components/scan/ScanCapture";
 import { NavBar } from "@/components/ui/NavBar";
 
 export default function ScanPage() {
   return (
-    <>
+    <div
+      className="flex flex-col"
+      style={{
+        minHeight:
+          "calc(100dvh - 1.5rem - env(safe-area-inset-top) - 1rem - var(--tabbar-total))",
+      }}
+    >
       <NavBar title="Scan a recipe" />
       <ScanCapture />
-      <p className="text-center text-sm text-(--color-ink-muted)">
-        Prefer typing?{" "}
-        <Link href="/scan/manual" className="text-(--color-accent) underline">
-          Enter a recipe manually
-        </Link>
-      </p>
-    </>
+    </div>
   );
 }

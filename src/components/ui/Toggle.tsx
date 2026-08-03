@@ -22,7 +22,7 @@ export function Toggle({
       }`}
     >
       <span
-        className={`absolute top-[2px] h-[27px] w-[27px] rounded-full bg-white shadow transition-transform motion-reduce:transition-none ${
+        className={`absolute top-[2px] left-0 h-[27px] w-[27px] rounded-full bg-white shadow transition-transform motion-reduce:transition-none ${
           checked ? "translate-x-[22px]" : "translate-x-[2px]"
         }`}
       />

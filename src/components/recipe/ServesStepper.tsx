@@ -1,10 +1,11 @@
 import Link from "next/link";
 
-const PRESETS = [1, 2, 4, 6, 8];
+const PRESETS = [1, 2, 4, 6, 8, 12];
 
 export function ServesStepper({ recipeId, current }: { recipeId: string; current: number }) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-sm text-(--color-ink-muted)">Serves</span>
       <div className="flex items-center gap-0.5 rounded-full bg-(--color-surface-alt) p-1">
         {PRESETS.map((n) => (
           <Link
@@ -20,27 +21,15 @@ export function ServesStepper({ recipeId, current }: { recipeId: string; current
           </Link>
         ))}
         {!PRESETS.includes(current) && (
-          <span className="rounded-full bg-(--color-surface) px-4 py-1.5 text-sm font-medium tabular-nums text-(--color-ink) shadow-sm">
+          <Link
+            href={`/recipes/${recipeId}`}
+            className="rounded-full bg-(--color-surface) px-4 py-1.5 text-sm font-medium tabular-nums text-(--color-ink) shadow-sm active:opacity-60"
+            aria-label={`Currently ${current} servings, tap to reset`}
+          >
             {current}
-          </span>
+          </Link>
         )}
       </div>
-      <form action={`/recipes/${recipeId}`} className="flex items-center gap-1">
-        <input
-          type="number"
-          name="serves"
-          min={1}
-          defaultValue={current}
-          className="w-16 rounded-full border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-sm"
-          aria-label="Custom serves"
-        />
-        <button
-          type="submit"
-          className="rounded-full border border-(--color-border) px-3 py-1.5 text-sm"
-        >
-          Go
-        </button>
-      </form>
     </div>
   );
 }
