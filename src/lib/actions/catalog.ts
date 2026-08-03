@@ -7,30 +7,6 @@ import { normalizeIngredientName } from "@/lib/units/normalize";
 import { pickProductOption } from "@/lib/pricing/storeSelect";
 import type { CanonicalUnit, IngredientCategory, ProductOptionSource, Store } from "@/generated/prisma";
 
-export interface CatalogSearchResult {
-  id: string;
-  name: string;
-  category: IngredientCategory;
-  canonicalUnit: CanonicalUnit;
-  similarity: number;
-}
-
-/** Autocomplete over the user's own catalog using pg_trgm similarity. */
-export async function searchCatalog(q: string): Promise<CatalogSearchResult[]> {
-  const userId = await requireUser();
-  const query = q.trim();
-  if (!query) return [];
-
-  return prisma.$queryRaw<CatalogSearchResult[]>`
-    SELECT id, name, category, "canonicalUnit", similarity(name, ${query}) AS similarity
-    FROM "CatalogIngredient"
-    WHERE "userId" = ${userId}
-      AND (name % ${query} OR name ILIKE ${"%" + query + "%"})
-    ORDER BY similarity DESC
-    LIMIT 10
-  `;
-}
-
 export interface UpsertProductOptionInput {
   id?: string; // update if provided, else create
   catalogIngredientId: string;

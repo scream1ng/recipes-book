@@ -24,7 +24,7 @@ export default async function LibraryPage() {
 
       {recipes.length === 0 ? (
         <p className="mt-12 text-center text-(--color-ink-muted)">
-          No recipes yet. Scan a photo or add one manually to get started.
+          No recipes yet. Scan a photo or paste one in to get started.
         </p>
       ) : (
         <>
@@ -48,10 +48,10 @@ export default async function LibraryPage() {
           + Scan
         </Link>
         <Link
-          href="/scan/manual?from=recipes"
+          href="/scan/paste?from=recipes"
           className="flex-1 rounded-full border border-(--color-border) px-4 py-2.5 text-center text-sm font-medium"
         >
-          + Manual
+          + Paste
         </Link>
       </StickyActionBar>
     </>

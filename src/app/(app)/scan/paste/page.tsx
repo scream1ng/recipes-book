@@ -1,4 +1,4 @@
-import { ManualEntry } from "@/components/scan/ManualEntry";
+import { PasteEntry } from "@/components/scan/PasteEntry";
 import { NavBar } from "@/components/ui/NavBar";
 import { BackLink } from "@/components/ui/BackLink";
 
@@ -7,7 +7,7 @@ const ORIGINS: Record<string, { href: string; label: string }> = {
   order: { href: "/order", label: "Order" },
 };
 
-export default async function ManualEntryPage({
+export default async function PasteRecipePage({
   searchParams,
 }: {
   searchParams: Promise<{ from?: string }>;
@@ -17,10 +17,8 @@ export default async function ManualEntryPage({
 
   return (
     <>
-      <NavBar title="Manual entry" left={<BackLink href={origin.href} label={origin.label} />} />
-      <div className="flex flex-col gap-4 pt-6">
-        <ManualEntry />
-      </div>
+      <NavBar title="Paste a recipe" left={<BackLink href={origin.href} label={origin.label} />} />
+      <PasteEntry />
     </>
   );
 }
