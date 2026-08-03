@@ -18,12 +18,17 @@ function normalizeQueryKey(query: string): string {
  * so callers can leave price fields blank (per spec: no blocking, no
  * stale-cache fallback, no retry-with-headless-browser escalation).
  */
-export async function getCachedColesResults(userId: string, query: string): Promise<ColesProduct[]> {
+export async function getCachedColesResults(
+  userId: string,
+  query: string,
+  opts?: { maxAgeMs?: number }
+): Promise<ColesProduct[]> {
   const queryKey = normalizeQueryKey(query);
   const now = new Date();
+  const freshEnoughAt = opts?.maxAgeMs != null ? new Date(now.getTime() - opts.maxAgeMs) : null;
 
   const cached = await prisma.colesSearchCache.findUnique({ where: { queryKey } });
-  if (cached && cached.expiresAt > now) {
+  if (cached && cached.expiresAt > now && (!freshEnoughAt || cached.fetchedAt > freshEnoughAt)) {
     try {
       return JSON.parse(cached.resultsJson) as ColesProduct[];
     } catch {

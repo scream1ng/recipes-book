@@ -7,6 +7,12 @@ import { normalizeIngredientName } from "@/lib/units/normalize";
 import { pickProductOption } from "@/lib/pricing/storeSelect";
 import type { CanonicalUnit, IngredientCategory, ProductOptionSource, Store } from "@/generated/prisma";
 
+function revalidatePricePaths() {
+  revalidatePath("/pantry");
+  revalidatePath("/order");
+  revalidatePath("/list");
+}
+
 export interface UpsertProductOptionInput {
   id?: string; // update if provided, else create
   catalogIngredientId: string;
@@ -72,6 +78,8 @@ export async function upsertProductOption(input: UpsertProductOptionInput) {
     });
   }
 
+  revalidatePricePaths();
+
   return option;
 }
 
@@ -126,11 +134,16 @@ export async function findOrCreateCatalogIngredient(input: CreateCatalogIngredie
  * Re-scrapes a single Coles-sourced product's price and records a snapshot.
  * Never touches MANUAL-source options (Woolworths / user overrides), per spec.
  */
-export async function refreshProductPrice(productOptionId: string) {
-  const userId = await requireUser();
+const REFRESH_CACHE_MAX_AGE_MS = 60 * 60 * 1000; // 1h: user-tapped refresh tolerates an hour-old cache
 
+async function refreshProductPriceCore(
+  userId: string,
+  productOptionId: string,
+  opts: { maxAgeMs?: number; revalidate: boolean }
+) {
   const option = await prisma.productOption.findFirst({
     where: { id: productOptionId, catalogIngredient: { userId } },
+    include: { catalogIngredient: true },
   });
   if (!option) throw new Error("Product option not found");
   if (option.source !== "COLES_SCRAPE") {
@@ -138,14 +151,25 @@ export async function refreshProductPrice(productOptionId: string) {
   }
 
   const { getCachedColesResults } = await import("@/lib/scrape/coles-cache");
-  const results = await getCachedColesResults(userId, option.productName);
-  const match = results.find((r) => r.productId === option.colesProductId) ?? results[0];
+  const results = await getCachedColesResults(userId, option.catalogIngredient.name, {
+    maxAgeMs: opts.maxAgeMs,
+  });
+  const match = option.colesProductId
+    ? (results.find((r) => r.productId === option.colesProductId) ?? results[0])
+    : results[0];
+
+  if (opts.revalidate) {
+    revalidatePath("/pantry");
+    revalidatePath("/order");
+    revalidatePath("/list");
+  }
 
   if (!match || match.priceCents == null) {
-    return prisma.productOption.update({
+    const failed = await prisma.productOption.update({
       where: { id: option.id },
       data: { lastRefreshError: "Could not find a current price for this product." },
     });
+    return { ok: false as const, option: failed };
   }
 
   const updated = await prisma.productOption.update({
@@ -161,7 +185,81 @@ export async function refreshProductPrice(productOptionId: string) {
     data: { productOptionId: option.id, priceCents: match.priceCents },
   });
 
-  return updated;
+  return { ok: true as const, option: updated };
+}
+
+/**
+ * Re-scrapes a single Coles-sourced product's price and records a snapshot.
+ * Never touches MANUAL-source options (Woolworths / user overrides), per spec.
+ */
+export async function refreshProductPrice(productOptionId: string) {
+  const userId = await requireUser();
+
+  const { checkColesRefreshRateLimit } = await import("@/lib/ratelimit");
+  if (!checkColesRefreshRateLimit(userId)) {
+    throw new Error("Too many price refreshes — try again in a moment.");
+  }
+
+  const result = await refreshProductPriceCore(userId, productOptionId, {
+    maxAgeMs: REFRESH_CACHE_MAX_AGE_MS,
+    revalidate: true,
+  });
+  return result.option;
+}
+
+/**
+ * Bulk-refresh variant used by the "Refresh prices" run: uses the default 24h cache
+ * (no bypass — repeat runs of the same ingredient name are mostly free), skips the
+ * per-call revalidatePath (the client refreshes once at the end of the run), and
+ * never throws — a bad item must not abort the rest of the queue.
+ */
+export async function bulkRefreshItem(
+  productOptionId: string
+): Promise<{ ok: true; priceCents: number } | { ok: false; reason: string }> {
+  const userId = await requireUser();
+
+  const { checkColesBulkRefreshRateLimit } = await import("@/lib/ratelimit");
+  if (!checkColesBulkRefreshRateLimit(userId)) {
+    return { ok: false, reason: "Rate limited" };
+  }
+
+  try {
+    const result = await refreshProductPriceCore(userId, productOptionId, { revalidate: false });
+    return result.ok
+      ? { ok: true, priceCents: result.option.priceCents }
+      : { ok: false, reason: result.option.lastRefreshError ?? "Not found" };
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : "Failed" };
+  }
+}
+
+export interface BulkRefreshTarget {
+  catalogIngredientId: string;
+  name: string;
+  productOptionId: string;
+}
+
+/** Ingredients eligible for a bulk refresh run: stale or errored Coles-sourced prices only. */
+export async function getBulkRefreshTargets(): Promise<BulkRefreshTarget[]> {
+  const userId = await requireUser();
+
+  const { checkColesBulkRunRateLimit } = await import("@/lib/ratelimit");
+  if (!checkColesBulkRunRateLimit(userId)) {
+    throw new Error("Bulk refresh was run recently — try again later.");
+  }
+
+  const [settings, grouped] = await Promise.all([
+    prisma.userSettings.findUniqueOrThrow({ where: { userId } }),
+    getPantryIngredients(),
+  ]);
+  const rows = Object.values(grouped).flat();
+
+  const { selectBulkRefreshTargets } = await import("@/lib/pricing/bulkRefresh");
+  return selectBulkRefreshTargets(rows, settings.stalePriceHours).map((row) => ({
+    catalogIngredientId: row.id,
+    name: row.name,
+    productOptionId: row.productOptionId as string,
+  }));
 }
 
 export interface AddColesProductInput {
@@ -206,7 +304,49 @@ export async function addColesProductAsOption(input: AddColesProductInput) {
     data: { selectedProductOptionId: option.id },
   });
 
+  revalidatePricePaths();
+
   return option;
+}
+
+/**
+ * One-tap Coles fetch for an ingredient with no priced option yet. Auto-materializes
+ * the result only when there's a single unambiguous candidate; otherwise leaves it to
+ * the swap sheet so the user picks (multiple pack sizes/products for a vague name).
+ */
+export async function fetchColesPriceForIngredient(catalogIngredientId: string) {
+  const userId = await requireUser();
+
+  const { checkColesRefreshRateLimit } = await import("@/lib/ratelimit");
+  if (!checkColesRefreshRateLimit(userId)) {
+    throw new Error("Too many price refreshes — try again in a moment.");
+  }
+
+  const catalogIngredient = await prisma.catalogIngredient.findFirst({
+    where: { id: catalogIngredientId, userId },
+  });
+  if (!catalogIngredient) throw new Error("Catalog ingredient not found");
+
+  const { getCachedColesResults } = await import("@/lib/scrape/coles-cache");
+  const results = await getCachedColesResults(userId, catalogIngredient.name);
+  const priced = results.filter((r) => r.priceCents != null && r.packQty != null && r.packQty > 0);
+
+  if (priced.length !== 1) {
+    return { ok: false as const, reason: priced.length === 0 ? "not_found" : "ambiguous" };
+  }
+
+  const match = priced[0];
+  const option = await addColesProductAsOption({
+    catalogIngredientId,
+    productName: match.name,
+    packLabel: match.packLabel,
+    packQty: match.packQty as number,
+    priceCents: match.priceCents as number,
+    colesProductId: match.productId,
+    sourceUrl: match.productUrl,
+  });
+
+  return { ok: true as const, option };
 }
 
 // ---------- onHand (Pantry) ----------
@@ -223,9 +363,7 @@ export async function toggleOnHand(catalogIngredientId: string) {
     data: { onHand: !existing.onHand },
   });
 
-  revalidatePath("/pantry");
-  revalidatePath("/order");
-  revalidatePath("/list");
+  revalidatePricePaths();
 }
 
 export interface PantryIngredientRow {
@@ -237,6 +375,9 @@ export interface PantryIngredientRow {
   priceCents: number | null;
   packLabel: string | null;
   priceUpdatedAt: Date | null;
+  productOptionId: string | null;
+  source: ProductOptionSource | null;
+  lastRefreshError: string | null;
 }
 
 /** All of the user's catalog ingredients, grouped by category, for the Pantry screen. */
@@ -261,6 +402,9 @@ export async function getPantryIngredients(): Promise<Record<string, PantryIngre
       priceCents: option?.priceCents ?? null,
       packLabel: option?.packLabel ?? null,
       priceUpdatedAt: option?.priceUpdatedAt ?? null,
+      productOptionId: option?.id ?? null,
+      source: option?.source ?? null,
+      lastRefreshError: option?.lastRefreshError ?? null,
     };
   });
 

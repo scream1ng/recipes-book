@@ -39,3 +39,18 @@ export function checkRateLimit(
 export function checkColesSearchRateLimit(userId: string): boolean {
   return checkRateLimit(`coles-search:${userId}`, { capacity: 20, refillPerSecond: 0.5 });
 }
+
+/** Coles price refresh: each call is a scrape + Gemini parse, tighter than autocomplete. */
+export function checkColesRefreshRateLimit(userId: string): boolean {
+  return checkRateLimit(`coles-refresh:${userId}`, { capacity: 10, refillPerSecond: 0.1 });
+}
+
+/** Gates starting a bulk "Refresh prices" run: roughly 3 runs, then 1 per 20 minutes. */
+export function checkColesBulkRunRateLimit(userId: string): boolean {
+  return checkRateLimit(`coles-bulk-run:${userId}`, { capacity: 3, refillPerSecond: 1 / 1200 });
+}
+
+/** Per-item bucket for a bulk run — separate from the row button's bucket so they don't starve each other. */
+export function checkColesBulkRefreshRateLimit(userId: string): boolean {
+  return checkRateLimit(`coles-bulk:${userId}`, { capacity: 120, refillPerSecond: 1 });
+}

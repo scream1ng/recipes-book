@@ -3,6 +3,8 @@ import { lineCostCents, scaleQty, costPerServe, unitPriceCents, pantryCostCents 
 import { computePackCount } from "../packs";
 import { isPriceStale } from "../staleness";
 import { findCheaperAlternative } from "../savings";
+import { pickProductOption } from "../storeSelect";
+import { selectBulkRefreshTargets } from "../bulkRefresh";
 
 describe("cost", () => {
   it("computes proportional line cost", () => {
@@ -62,6 +64,80 @@ describe("staleness", () => {
     const updatedAt = new Date("2026-07-22T12:00:00Z"); // 72h ago
     expect(isPriceStale(updatedAt, 48, now)).toBe(true);
     expect(isPriceStale(updatedAt, 96, now)).toBe(false);
+  });
+});
+
+describe("storeSelect", () => {
+  const coles = { id: "coles", store: "COLES", packQty: 500, priceCents: 500 };
+  const cheaperColes = { id: "coles-cheap", store: "COLES", packQty: 1000, priceCents: 700 };
+  const woolies = { id: "woolies", store: "WOOLWORTHS", packQty: 500, priceCents: 600 };
+
+  function ingredient(selectedProductOption: object | null, productOptions: object[]) {
+    return { selectedProductOption, productOptions } as never;
+  }
+
+  it("sticks with the explicitly selected option over a cheaper one in the same pool", () => {
+    const result = pickProductOption(
+      ingredient(coles, [coles, cheaperColes]),
+      "CHEAPEST_OF_BOTH" as never
+    );
+    expect(result).toBe(coles);
+  });
+
+  it("falls back to cheapest when nothing is selected", () => {
+    const result = pickProductOption(
+      ingredient(null, [coles, cheaperColes]),
+      "CHEAPEST_OF_BOTH" as never
+    );
+    expect(result).toBe(cheaperColes);
+  });
+
+  it("falls back to cheapest when the selected option is outside the preferred store pool", () => {
+    const result = pickProductOption(ingredient(woolies, [coles, woolies]), "COLES" as never);
+    expect(result).toBe(coles);
+  });
+});
+
+describe("bulkRefresh", () => {
+  const now = new Date("2026-07-25T12:00:00Z");
+  const fresh = new Date("2026-07-25T06:00:00Z"); // 6h ago
+  const old = new Date("2026-07-20T12:00:00Z"); // 5 days ago
+
+  it("skips manual (Woolworths) options even when stale", () => {
+    const rows = [
+      { id: "a", name: "Milk", productOptionId: "opt-a", source: "MANUAL", priceUpdatedAt: old, lastRefreshError: null },
+    ];
+    expect(selectBulkRefreshTargets(rows, 48, now)).toHaveLength(0);
+  });
+
+  it("skips unpriced ingredients", () => {
+    const rows = [
+      { id: "a", name: "Flour", productOptionId: null, source: null, priceUpdatedAt: null, lastRefreshError: null },
+    ];
+    expect(selectBulkRefreshTargets(rows, 48, now)).toHaveLength(0);
+  });
+
+  it("includes stale Coles options and excludes fresh ones", () => {
+    const rows = [
+      { id: "a", name: "Stale", productOptionId: "opt-a", source: "COLES_SCRAPE", priceUpdatedAt: old, lastRefreshError: null },
+      { id: "b", name: "Fresh", productOptionId: "opt-b", source: "COLES_SCRAPE", priceUpdatedAt: fresh, lastRefreshError: null },
+    ];
+    const result = selectBulkRefreshTargets(rows, 48, now);
+    expect(result.map((r) => r.id)).toEqual(["a"]);
+  });
+
+  it("includes a previously-errored Coles option even if not yet stale", () => {
+    const rows = [
+      {
+        id: "a",
+        name: "Errored",
+        productOptionId: "opt-a",
+        source: "COLES_SCRAPE",
+        priceUpdatedAt: fresh,
+        lastRefreshError: "Could not find a current price for this product.",
+      },
+    ];
+    expect(selectBulkRefreshTargets(rows, 48, now)).toHaveLength(1);
   });
 });
 
