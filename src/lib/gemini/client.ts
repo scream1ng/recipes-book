@@ -4,7 +4,7 @@ import type { ZodType } from "zod";
 import { prisma } from "@/lib/db";
 import type { GeminiUsageKind } from "@/generated/prisma";
 
-const MODEL_CHAIN = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"] as const;
+const MODEL_CHAIN = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"] as const;
 const TIMEOUT_MS = 30_000;
 
 export class GeminiNotConfiguredError extends Error {

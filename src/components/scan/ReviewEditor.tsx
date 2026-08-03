@@ -33,6 +33,7 @@ interface ParsedResult {
   serves: number | null;
   lines: ParsedLine[];
   method: string[];
+  source?: "photo" | "paste";
 }
 
 export function ReviewEditor() {
@@ -65,6 +66,33 @@ export function ReviewEditor() {
 
   const method = draft.method ?? [];
   const hasContent = draft.lines.length > 0 || method.length > 0;
+  const fromPaste = draft.source === "paste";
+  const backHref = fromPaste ? "/scan/paste" : "/scan";
+  const backLabel = fromPaste ? "Paste" : "Scan";
+
+  function addLine() {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        lines: [
+          ...prev.lines,
+          {
+            rawText: "",
+            amount: null,
+            unit: null,
+            name: "",
+            qtyCanonical: null,
+            confidence: 1,
+            flagged: false,
+            note: null,
+            catalogMatch: null,
+            category: "OTHER",
+          },
+        ],
+      };
+    });
+  }
 
   function updateLine(index: number, patch: Partial<ParsedLine>) {
     setDraft((prev) => {
@@ -118,6 +146,7 @@ export function ReviewEditor() {
       const ingredients: RecipeIngredientDraft[] = [];
       for (let i = 0; i < draft.lines.length; i++) {
         const line = draft.lines[i];
+        if (!line.name.trim()) continue;
         let catalogIngredientId = line.catalogMatch?.id;
         if (!catalogIngredientId && line.name) {
           const created = await findOrCreateCatalogIngredient({
@@ -160,7 +189,7 @@ export function ReviewEditor() {
 
   return (
     <>
-      <NavBar title="Review" left={<BackLink href="/scan" label="Scan" />} />
+      <NavBar title="Review" left={<BackLink href={backHref} label={backLabel} />} />
 
       <ListGroup className="mt-6">
         <ListRow>
@@ -198,12 +227,14 @@ export function ReviewEditor() {
 
       {!hasContent && (
         <div className="mt-6 flex flex-col items-center gap-3 text-center">
-          <p className="text-(--color-ink-muted)">Nothing was read from those photos.</p>
+          <p className="text-(--color-ink-muted)">
+            {fromPaste ? "Nothing was read from that text." : "Nothing was read from those photos."}
+          </p>
           <Link
-            href="/scan"
+            href={backHref}
             className="rounded-full bg-(--color-accent) px-6 py-3 font-medium text-white active:opacity-60"
           >
-            Take another photo
+            {fromPaste ? "Try pasting again" : "Take another photo"}
           </Link>
         </div>
       )}
@@ -257,6 +288,20 @@ export function ReviewEditor() {
                 </ListRow>
               </div>
             ))}
+            <ListDivider />
+            <button
+              type="button"
+              onClick={addLine}
+              className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left text-[15px] font-medium text-(--color-accent) active:bg-(--color-surface-alt)"
+            >
+              <span
+                aria-hidden
+                className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-(--color-accent) text-[15px] leading-none font-semibold text-white"
+              >
+                +
+              </span>
+              Add ingredient
+            </button>
           </ListGroup>
 
           <SectionHeader>Method</SectionHeader>

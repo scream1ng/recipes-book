@@ -34,7 +34,7 @@ export default async function OrderPage() {
 
       {recipes.length === 0 ? (
         <p className="mt-12 text-center text-(--color-ink-muted)">
-          No recipes yet. Scan a photo or add one manually to get started.
+          No recipes yet. Scan a photo or paste one in to get started.
         </p>
       ) : (
         <>
@@ -47,7 +47,7 @@ export default async function OrderPage() {
                   <div className="min-w-0 flex-1">
                     <p className="recipe-name truncate text-lg">{recipe.name}</p>
                     <p className="tabular-nums text-xs text-(--color-ink-muted)">
-                      {centsToDisplay(recipe.costPerServeCents)}/slice
+                      {centsToDisplay(recipe.costPerServeCents)}/serve
                     </p>
                   </div>
                   <OrderStepper recipeId={recipe.id} qty={recipe.orderQty} />
@@ -101,10 +101,10 @@ export default async function OrderPage() {
             + Scan
           </Link>
           <Link
-            href="/scan/manual?from=order"
+            href="/scan/paste?from=order"
             className="flex-1 rounded-full border border-(--color-border) px-4 py-2.5 text-center text-sm font-medium text-(--color-ink)"
           >
-            + Manual
+            + Paste
           </Link>
         </StickyActionBar>
       )}

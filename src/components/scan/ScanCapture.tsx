@@ -61,7 +61,7 @@ export function ScanCapture() {
         throw new Error(data.error ?? "Scan failed");
       }
 
-      sessionStorage.setItem("scan-review-draft", JSON.stringify(data));
+      sessionStorage.setItem("scan-review-draft", JSON.stringify({ ...data, source: "photo" }));
       router.push("/scan/review");
     } catch (err) {
       setStatus("error");
@@ -154,9 +154,9 @@ export function ScanCapture() {
         {error && <p className="max-w-xs text-sm text-(--color-accent-dark)">{error}</p>}
 
         <p className="text-sm text-(--color-ink-muted)">
-          Prefer typing?{" "}
-          <Link href="/scan/manual" className="text-(--color-accent) underline">
-            Enter a recipe manually
+          Got it as text?{" "}
+          <Link href="/scan/paste" className="text-(--color-accent) underline">
+            Paste it instead
           </Link>
         </p>
       </div>
