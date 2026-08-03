@@ -338,6 +338,8 @@ export async function applySwapSuggestion(catalogIngredientId: string, productOp
 
   revalidatePath("/recipes");
   revalidatePath("/list");
+  revalidatePath("/pantry");
+  revalidatePath("/order");
 }
 
 // ---------- markBakedToday ----------

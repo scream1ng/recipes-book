@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getCachedColesResults } from "@/lib/scrape/coles-cache";
 import { isPriceStale } from "@/lib/pricing/staleness";
+import { checkColesSearchRateLimit } from "@/lib/ratelimit";
 
 export async function GET(request: Request) {
   let userId: string;
@@ -16,6 +17,10 @@ export async function GET(request: Request) {
   const catalogIngredientId = searchParams.get("catalogIngredientId");
   if (!catalogIngredientId) {
     return NextResponse.json({ error: "catalogIngredientId is required" }, { status: 400 });
+  }
+
+  if (!checkColesSearchRateLimit(userId)) {
+    return NextResponse.json({ error: "Too many requests — try again in a moment." }, { status: 429 });
   }
 
   const [catalogIngredient, settings] = await Promise.all([
@@ -41,6 +46,7 @@ export async function GET(request: Request) {
     priceUpdatedAt: option.priceUpdatedAt,
     isCurrent: option.id === catalogIngredient.selectedProductOptionId,
     isStale: isPriceStale(option.priceUpdatedAt, settings.stalePriceHours),
+    lastRefreshError: option.lastRefreshError,
   }));
 
   // Live Coles query (via the shared 24h cache) supplements the stored options.

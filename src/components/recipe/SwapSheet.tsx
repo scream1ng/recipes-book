@@ -6,6 +6,8 @@ import { addColesProductAsOption, refreshProductPrice } from "@/lib/actions/cata
 import { centsToDisplay } from "@/lib/money";
 import { StoreBadge } from "@/components/ui/StoreBadge";
 import { Icon } from "@/components/ui/Icon";
+import { Spinner } from "@/components/ui/Spinner";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ManualPriceForm } from "./ManualPriceForm";
 
 interface StoredOption {
@@ -18,6 +20,7 @@ interface StoredOption {
   source: "COLES_SCRAPE" | "MANUAL";
   isCurrent: boolean;
   isStale: boolean;
+  lastRefreshError: string | null;
 }
 
 interface LiveColesProduct {
@@ -25,15 +28,19 @@ interface LiveColesProduct {
   packLabel: string;
   packQty: number | null;
   priceCents: number | null;
+  productId: string | null;
+  productUrl: string | null;
 }
 
 export function SwapSheet({
   catalogIngredientId,
   displayName,
+  title,
   onClose,
 }: {
   catalogIngredientId: string;
   displayName: string;
+  title?: string;
   onClose: () => void;
 }) {
   const [stored, setStored] = useState<StoredOption[] | null>(null);
@@ -132,6 +139,8 @@ export function SwapSheet({
         packLabel: product.packLabel,
         packQty: product.packQty as number,
         priceCents: product.priceCents as number,
+        colesProductId: product.productId,
+        sourceUrl: product.productUrl,
       });
       handleClose();
     });
@@ -139,7 +148,7 @@ export function SwapSheet({
 
   return (
     <div
-      className={`fixed inset-0 z-20 flex items-end bg-black/40 transition-opacity duration-200 ${
+      className={`fixed inset-0 z-30 flex items-end bg-black/40 transition-opacity duration-200 ${
         closing ? "opacity-0" : "motion-safe:animate-[fade-in_.2s_ease-out]"
       }`}
       onClick={handleClose}
@@ -147,7 +156,7 @@ export function SwapSheet({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`Swap: ${displayName}`}
+        aria-label={`${title ?? "Swap"}: ${displayName}`}
         className={`max-h-[80vh] w-full overflow-y-auto rounded-t-3xl bg-(--color-surface) pb-5 ${
           closing ? "" : "motion-safe:animate-[sheet-up_.25s_ease-out]"
         } ${dragging ? "" : "transition-transform duration-200"}`}
@@ -164,7 +173,7 @@ export function SwapSheet({
         </div>
 
         <div className="mb-3 flex items-center justify-between px-5">
-          <h2 className="text-xl">Swap: {displayName}</h2>
+          <h2 className="text-xl">{title ?? "Swap"}: {displayName}</h2>
           <button
             onClick={handleClose}
             className="-mr-2 flex h-11 w-11 items-center justify-center text-(--color-ink-muted) active:opacity-60"
@@ -194,6 +203,7 @@ export function SwapSheet({
                 Couldn&apos;t reach Coles — enter a price manually.
               </p>
             )}
+            {stored.length > 0 && <SectionHeader>Your prices</SectionHeader>}
             <ul className="flex flex-col divide-y divide-(--color-border)">
               {stored.map((opt) => (
                 <li key={opt.id} className="flex items-center">
@@ -212,24 +222,37 @@ export function SwapSheet({
                       {opt.isStale && (
                         <span className="ml-2 text-xs text-(--color-accent-dark)">stale price</span>
                       )}
+                      {opt.lastRefreshError && (
+                        <span className="mt-0.5 block text-xs text-(--color-accent-dark)">
+                          {opt.lastRefreshError}
+                        </span>
+                      )}
                     </span>
                     <span className="shrink-0 tabular-nums font-medium">
                       {centsToDisplay(opt.priceCents)}
                     </span>
                   </button>
-                  {opt.isStale && opt.source === "COLES_SCRAPE" && (
+                  {opt.source === "COLES_SCRAPE" && (
                     <button
                       type="button"
                       disabled={isPending}
                       onClick={() => refresh(opt.id)}
-                      className="shrink-0 px-3 text-xs font-medium text-(--color-accent) active:opacity-60"
+                      aria-label="Refresh price"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center text-(--color-accent) active:opacity-60"
                     >
-                      {refreshingId === opt.id && isPending ? "…" : "Refresh"}
+                      {refreshingId === opt.id && isPending ? (
+                        <Spinner size={16} />
+                      ) : (
+                        <Icon name="arrow-clockwise" size={16} />
+                      )}
                     </button>
                   )}
                 </li>
               ))}
+            </ul>
 
+            {liveColes.length > 0 && <SectionHeader>From Coles</SectionHeader>}
+            <ul className="flex flex-col divide-y divide-(--color-border)">
               {liveColes.map((product, i) => (
                 <li key={`live-${i}`}>
                   <button
@@ -239,7 +262,6 @@ export function SwapSheet({
                     className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left active:bg-(--color-surface-alt) disabled:opacity-50"
                   >
                     <StoreBadge store="COLES" />
-                    <span className="text-[10px] font-medium text-(--color-ink-muted)">live</span>
                     <span className="min-w-0 flex-1 truncate">
                       {product.name}{" "}
                       <span className="text-(--color-ink-muted)">({product.packLabel})</span>
@@ -258,7 +280,7 @@ export function SwapSheet({
                 onClick={() => setManualOpen(true)}
                 className="w-full rounded-full border border-(--color-border) px-4 py-2.5 text-center text-sm font-medium text-(--color-ink)"
               >
-                Enter price manually
+                Add a Woolworths / other price
               </button>
             </div>
           </div>
