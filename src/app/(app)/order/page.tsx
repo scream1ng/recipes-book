@@ -101,7 +101,7 @@ export default async function OrderPage() {
             + Scan
           </Link>
           <Link
-            href="/scan/manual"
+            href="/scan/manual?from=order"
             className="flex-1 rounded-full border border-(--color-border) px-4 py-2.5 text-center text-sm font-medium text-(--color-ink)"
           >
             + Manual

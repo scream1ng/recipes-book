@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { saveScannedRecipe, type RecipeIngredientDraft } from "@/lib/actions/recipes";
 import { findOrCreateCatalogIngredient } from "@/lib/actions/catalog";
 import type { IngredientCategory } from "@/generated/prisma";
 import { normalizeToCanonical, detectCanonicalUnitFromRawUnit } from "@/lib/units/normalize";
+import { Icon } from "@/components/ui/Icon";
 import { NavBar } from "@/components/ui/NavBar";
 import { BackLink } from "@/components/ui/BackLink";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ListGroup, ListRow, ListDivider } from "@/components/ui/ListGroup";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
-import { Toggle } from "@/components/ui/Toggle";
 
 interface ParsedLine {
   rawText: string;
@@ -26,16 +27,6 @@ interface ParsedLine {
   category: string;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  MEAT_POULTRY: "Meat & Poultry",
-  PRODUCE: "Produce",
-  PANTRY: "Pantry",
-  DAIRY_EGGS: "Dairy & Eggs",
-  FROZEN: "Frozen",
-  BAKERY: "Bakery",
-  OTHER: "Other",
-};
-
 interface ParsedResult {
   recipeName: string | null;
   minutes: number | null;
@@ -44,12 +35,9 @@ interface ParsedResult {
   method: string[];
 }
 
-const METHOD_PREVIEW_COUNT = 3;
-
 export function ReviewEditor() {
   const router = useRouter();
   const [draft, setDraft] = useState<ParsedResult | null>(null);
-  const [confirmed, setConfirmed] = useState<boolean[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,9 +46,9 @@ export function ReviewEditor() {
     if (raw) {
       const parsed = JSON.parse(raw) as ParsedResult;
       parsed.lines = parsed.lines.map((line) => ({ ...line, category: line.category ?? "OTHER" }));
+      parsed.serves = parsed.serves ?? 4;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of sessionStorage on mount, not derivable from props/state
       setDraft(parsed);
-      setConfirmed(parsed.lines.map(() => false));
     }
   }, []);
 
@@ -76,10 +64,7 @@ export function ReviewEditor() {
   }
 
   const method = draft.method ?? [];
-  const confirmedCount = confirmed.filter(Boolean).length;
   const hasContent = draft.lines.length > 0 || method.length > 0;
-  const allConfirmed =
-    draft.lines.length > 0 && confirmedCount === draft.lines.length && hasContent;
 
   function updateLine(index: number, patch: Partial<ParsedLine>) {
     setDraft((prev) => {
@@ -101,16 +86,28 @@ export function ReviewEditor() {
     });
   }
 
-  function setLineConfirmed(index: number, value: boolean) {
-    setConfirmed((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
+  function updateMethodStep(index: number, value: string) {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const method = [...(prev.method ?? [])];
+      method[index] = value;
+      return { ...prev, method };
     });
   }
 
-  function confirmAll() {
-    setConfirmed(draft ? draft.lines.map(() => true) : []);
+  function removeMethodStep(index: number) {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const method = (prev.method ?? []).filter((_, i) => i !== index);
+      return { ...prev, method };
+    });
+  }
+
+  function addMethodStep() {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      return { ...prev, method: [...(prev.method ?? []), ""] };
+    });
   }
 
   async function handleSave() {
@@ -150,13 +147,13 @@ export function ReviewEditor() {
         baseServes: draft.serves ?? 4,
         sourceType: "SCAN",
         ingredients,
-        methodSteps: method,
+        methodSteps: method.map((s) => s.trim()).filter((s) => s !== ""),
       });
 
       sessionStorage.removeItem("scan-review-draft");
       router.push(`/recipes/${recipe.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save recipe");
+    } catch {
+      setError("Couldn't save. Try again.");
       setSaving(false);
     }
   }
@@ -171,145 +168,157 @@ export function ReviewEditor() {
             value={draft.recipeName ?? ""}
             onChange={(e) => setDraft({ ...draft, recipeName: e.target.value })}
             placeholder="Recipe name"
-            className="recipe-name w-full bg-transparent text-xl outline-none"
+            className="recipe-name min-w-0 flex-1 bg-transparent text-xl outline-none"
           />
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <span className="text-sm text-(--color-ink-muted)">Serves</span>
+            <button
+              type="button"
+              disabled={(draft.serves ?? 1) <= 1}
+              onClick={() =>
+                setDraft({ ...draft, serves: Math.max(1, (draft.serves ?? 1) - 1) })
+              }
+              aria-label="Decrease servings"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-(--color-surface-alt) text-(--color-accent) active:opacity-60 disabled:opacity-30"
+            >
+              <Icon name="minus" size={14} />
+            </button>
+            <span className="w-4 text-center text-sm tabular-nums">{draft.serves ?? 4}</span>
+            <button
+              type="button"
+              onClick={() => setDraft({ ...draft, serves: (draft.serves ?? 1) + 1 })}
+              aria-label="Increase servings"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-(--color-surface-alt) text-(--color-accent) active:opacity-60"
+            >
+              <Icon name="plus" size={14} />
+            </button>
+          </div>
         </ListRow>
       </ListGroup>
 
-      <div className="flex items-center justify-between">
-        <SectionHeader>Ingredients</SectionHeader>
-        <div className="flex items-center gap-2 pr-4">
-          <span className="text-xs text-(--color-ink-muted)">
-            {confirmedCount}/{draft.lines.length} confirmed
-          </span>
-          {draft.lines.length > 0 && confirmedCount < draft.lines.length && (
-            <button
-              type="button"
-              onClick={confirmAll}
-              className="text-xs font-medium text-(--color-accent) active:opacity-60"
-            >
-              Confirm all
-            </button>
-          )}
+      {!hasContent && (
+        <div className="mt-6 flex flex-col items-center gap-3 text-center">
+          <p className="text-(--color-ink-muted)">Nothing was read from those photos.</p>
+          <Link
+            href="/scan"
+            className="rounded-full bg-(--color-accent) px-6 py-3 font-medium text-white active:opacity-60"
+          >
+            Take another photo
+          </Link>
         </div>
-      </div>
+      )}
 
-      <ListGroup>
-        {draft.lines.map((line, i) => (
-          <div key={i}>
-            {i > 0 && <ListDivider />}
-            <ListRow>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 text-xs font-medium">
-                  <span
-                    className={
-                      line.flagged ? "text-(--color-accent-dark)" : "text-(--color-good)"
-                    }
-                  >
-                    {line.flagged ? "Needs review" : "OK"}
-                  </span>
-                  {line.catalogMatch && (
-                    <span className="truncate text-(--color-ink-muted)">
-                      matched: {line.catalogMatch.name} ({Math.round(line.catalogMatch.confidence * 100)}%)
-                    </span>
-                  )}
-                </div>
-                <input
-                  value={line.rawText}
-                  onChange={(e) => updateLine(i, { rawText: e.target.value })}
-                  className="mt-1 w-full bg-transparent text-sm outline-none"
-                />
-                {line.flagged && line.note && (
-                  <p className="mt-1 text-xs text-(--color-accent-dark)">{line.note}</p>
-                )}
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  <input
-                    type="number"
-                    value={line.amount ?? ""}
-                    onChange={(e) =>
-                      updateLine(i, {
-                        amount: e.target.value === "" ? null : Number(e.target.value),
-                      })
-                    }
-                    placeholder="Amount"
-                    className="rounded-lg border border-(--color-border) px-2 py-1 text-sm"
-                  />
-                  <input
-                    value={line.unit ?? ""}
-                    onChange={(e) => updateLine(i, { unit: e.target.value })}
-                    placeholder="Unit"
-                    className="rounded-lg border border-(--color-border) px-2 py-1 text-sm"
-                  />
-                  <input
-                    value={line.name}
-                    onChange={(e) => updateLine(i, { name: e.target.value })}
-                    placeholder="Ingredient"
-                    className="rounded-lg border border-(--color-border) px-2 py-1 text-sm"
-                  />
-                </div>
-                <select
-                  value={line.category}
-                  onChange={(e) => updateLine(i, { category: e.target.value })}
-                  className="mt-2 w-full rounded-lg border border-(--color-border) bg-transparent px-2 py-1 text-sm"
-                >
-                  {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Toggle
-                checked={confirmed[i] ?? false}
-                onChange={(value) => setLineConfirmed(i, value)}
-                label={`Confirm ${line.name || "ingredient"}`}
-              />
-            </ListRow>
-          </div>
-        ))}
-      </ListGroup>
-
-      {method.length > 0 && (
+      {hasContent && (
         <>
-          <SectionHeader>Method</SectionHeader>
+          <SectionHeader>Ingredients</SectionHeader>
+
           <ListGroup>
-            {method.slice(0, METHOD_PREVIEW_COUNT).map((step, i) => (
+            {draft.lines.map((line, i) => (
               <div key={i}>
                 {i > 0 && <ListDivider />}
-                <ListRow>
-                  <span className="shrink-0 text-sm text-(--color-ink-muted)">{i + 1}.</span>
-                  <p className="min-w-0 flex-1 text-sm">{step}</p>
+                <ListRow className="items-start">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline gap-x-1.5 text-[15px]">
+                      <input
+                        value={line.name}
+                        onChange={(e) => updateLine(i, { name: e.target.value })}
+                        placeholder="Ingredient"
+                        className="min-w-[4rem] flex-1 bg-transparent font-medium outline-none"
+                      />
+                      <span className="text-(--color-ink-muted)">×</span>
+                      <input
+                        type="number"
+                        value={line.amount ?? ""}
+                        onChange={(e) =>
+                          updateLine(i, {
+                            amount: e.target.value === "" ? null : Number(e.target.value),
+                          })
+                        }
+                        placeholder="0"
+                        className="w-14 bg-transparent text-(--color-ink-muted) outline-none"
+                      />
+                      <input
+                        value={line.unit ?? ""}
+                        onChange={(e) => updateLine(i, { unit: e.target.value })}
+                        className="w-12 bg-transparent text-(--color-ink-muted) outline-none"
+                      />
+                    </div>
+                    {line.catalogMatch && line.catalogMatch.name !== line.name && (
+                      <p className="min-w-0 truncate text-xs text-(--color-ink-muted)">
+                        also known as {line.catalogMatch.name}
+                      </p>
+                    )}
+                    {line.flagged && (
+                      <p className="text-xs text-(--color-accent-dark)">
+                        {line.note ?? "Double-check this line"}
+                      </p>
+                    )}
+                  </div>
                 </ListRow>
               </div>
             ))}
           </ListGroup>
-          <p className="px-4 pt-2 text-xs text-(--color-ink-muted)">
-            {method.length > METHOD_PREVIEW_COUNT
-              ? `+${method.length - METHOD_PREVIEW_COUNT} more steps — `
-              : ""}
-            Full method will be on the recipe page after saving.
-          </p>
+
+          <SectionHeader>Method</SectionHeader>
+          <ListGroup>
+            {method.length === 0 ? (
+              <ListRow>
+                <p className="text-sm text-(--color-ink-muted)">No steps yet.</p>
+              </ListRow>
+            ) : (
+              method.map((step, i) => (
+                <div key={i}>
+                  {i > 0 && <ListDivider />}
+                  <ListRow>
+                    <span className="shrink-0 text-sm text-(--color-ink-muted)">{i + 1}.</span>
+                    <input
+                      value={step}
+                      onChange={(e) => updateMethodStep(i, e.target.value)}
+                      placeholder="Step description"
+                      className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeMethodStep(i)}
+                      aria-label={`Remove step ${i + 1}`}
+                      className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center text-(--color-accent-dark) active:opacity-60"
+                    >
+                      <span aria-hidden className="text-[22px] leading-none">&minus;</span>
+                    </button>
+                  </ListRow>
+                </div>
+              ))
+            )}
+            <ListDivider />
+            <button
+              type="button"
+              onClick={addMethodStep}
+              className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left text-[15px] font-medium text-(--color-accent) active:bg-(--color-surface-alt)"
+            >
+              <span
+                aria-hidden
+                className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-(--color-accent) text-[15px] leading-none font-semibold text-white"
+              >
+                +
+              </span>
+              Add step
+            </button>
+          </ListGroup>
+
+          {error && <p className="px-4 pt-4 text-sm text-(--color-accent-dark)">{error}</p>}
+
+          <StickyActionBar>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={handleSave}
+              className="flex-1 rounded-full bg-(--color-accent) px-6 py-3 font-medium text-white disabled:opacity-40"
+            >
+              {saving ? "Saving…" : "Save recipe"}
+            </button>
+          </StickyActionBar>
         </>
       )}
-
-      {error && <p className="px-4 pt-4 text-sm text-(--color-accent-dark)">{error}</p>}
-
-      <StickyActionBar>
-        <button
-          type="button"
-          disabled={saving || !allConfirmed}
-          onClick={handleSave}
-          className="flex-1 rounded-full bg-(--color-accent) px-6 py-3 font-medium text-white disabled:opacity-40"
-        >
-          {saving
-            ? "Saving…"
-            : allConfirmed
-              ? "Save recipe"
-              : hasContent
-                ? "Confirm all lines to save"
-                : "Nothing was read from these photos"}
-        </button>
-      </StickyActionBar>
     </>
   );
 }

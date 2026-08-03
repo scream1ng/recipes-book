@@ -2,8 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateRecipe, deleteRecipe } from "@/lib/actions/recipes";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { updateRecipe } from "@/lib/actions/recipes";
 
 export function RecipeHeaderActions({
   recipeId,
@@ -17,7 +16,6 @@ export function RecipeHeaderActions({
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState(name);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function saveName() {
@@ -31,13 +29,6 @@ export function RecipeHeaderActions({
       await updateRecipe(recipeId, { name: trimmed });
       setEditing(false);
       router.refresh();
-    });
-  }
-
-  function handleDelete() {
-    startTransition(async () => {
-      await deleteRecipe(recipeId);
-      router.push("/recipes");
     });
   }
 
@@ -68,27 +59,7 @@ export function RecipeHeaderActions({
           <h1 className="recipe-name text-3xl">{name}</h1>
         </button>
       )}
-      <div className="flex items-center justify-between">
-        {tag ? <p className="text-sm text-(--color-ink-muted)">{tag}</p> : <span />}
-        <button
-          type="button"
-          onClick={() => setConfirmingDelete(true)}
-          disabled={isPending}
-          className="text-sm text-(--color-destructive) active:opacity-60"
-        >
-          Delete recipe
-        </button>
-      </div>
-
-      {confirmingDelete && (
-        <ConfirmDialog
-          title={`Delete "${name}"?`}
-          message="This can't be undone."
-          isPending={isPending}
-          onConfirm={handleDelete}
-          onCancel={() => setConfirmingDelete(false)}
-        />
-      )}
+      {tag && <p className="text-sm text-(--color-ink-muted)">{tag}</p>}
     </div>
   );
 }
