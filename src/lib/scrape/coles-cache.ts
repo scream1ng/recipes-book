@@ -9,6 +9,12 @@ function normalizeQueryKey(query: string): string {
   return query.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+export interface CachedColesResult {
+  products: ColesProduct[];
+  /** True when served from the 24h DB cache — no scrape/Gemini call happened. */
+  cached: boolean;
+}
+
 /**
  * Looks up a Coles search query in the 24h DB cache, refetching + Gemini-
  * parsing on miss/expiry. Used by both /api/coles/search (manual-entry
@@ -22,7 +28,7 @@ export async function getCachedColesResults(
   userId: string,
   query: string,
   opts?: { maxAgeMs?: number }
-): Promise<ColesProduct[]> {
+): Promise<CachedColesResult> {
   const queryKey = normalizeQueryKey(query);
   const now = new Date();
   const freshEnoughAt = opts?.maxAgeMs != null ? new Date(now.getTime() - opts.maxAgeMs) : null;
@@ -30,7 +36,7 @@ export async function getCachedColesResults(
   const cached = await prisma.colesSearchCache.findUnique({ where: { queryKey } });
   if (cached && cached.expiresAt > now && (!freshEnoughAt || cached.fetchedAt > freshEnoughAt)) {
     try {
-      return JSON.parse(cached.resultsJson) as ColesProduct[];
+      return { products: JSON.parse(cached.resultsJson) as ColesProduct[], cached: true };
     } catch {
       // fall through to refetch on corrupt cache
     }
@@ -52,8 +58,8 @@ export async function getCachedColesResults(
         expiresAt: new Date(now.getTime() + CACHE_TTL_MS),
       },
     });
-    return products;
+    return { products, cached: false };
   } catch {
-    return [];
+    return { products: [], cached: false };
   }
 }

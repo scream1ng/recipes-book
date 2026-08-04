@@ -45,9 +45,9 @@ export function checkColesRefreshRateLimit(userId: string): boolean {
   return checkRateLimit(`coles-refresh:${userId}`, { capacity: 10, refillPerSecond: 0.1 });
 }
 
-/** Gates starting a bulk "Refresh prices" run: roughly 3 runs, then 1 per 20 minutes. */
+/** Gates starting an "Update prices" run: roughly 5 runs, then 1 per 10 minutes. */
 export function checkColesBulkRunRateLimit(userId: string): boolean {
-  return checkRateLimit(`coles-bulk-run:${userId}`, { capacity: 3, refillPerSecond: 1 / 1200 });
+  return checkRateLimit(`coles-bulk-run:${userId}`, { capacity: 5, refillPerSecond: 1 / 600 });
 }
 
 /** Per-item bucket for a bulk run — separate from the row button's bucket so they don't starve each other. */

@@ -208,7 +208,7 @@ export function ReviewEditor() {
                 setDraft({ ...draft, serves: Math.max(1, (draft.serves ?? 1) - 1) })
               }
               aria-label="Decrease servings"
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-(--color-surface-alt) text-(--color-accent) active:opacity-60 disabled:opacity-30"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-(--color-surface-alt) text-(--color-accent) active:opacity-60 disabled:opacity-40"
             >
               <Icon name="minus" size={14} />
             </button>

@@ -129,7 +129,7 @@ export function ManualPriceForm({
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 rounded-full bg-(--color-accent) px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
+          className="flex-1 rounded-full bg-(--color-accent) px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40"
         >
           {isPending ? "Saving…" : "Save price"}
         </button>

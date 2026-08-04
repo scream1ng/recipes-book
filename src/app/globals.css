@@ -5,9 +5,10 @@
   --color-surface: #FFFCF9;
   --color-surface-alt: #E8DED6;
   --color-ink: #2B211E;
-  --color-ink-muted: #9A8A85;
+  --color-ink-muted: #7E6E69;
   --color-border: rgba(60, 40, 35, .12);
-  --color-accent: #C9587A;
+  --color-border-strong: rgba(60, 40, 35, .22);
+  --color-accent: #B84A6C;
   --color-accent-dark: #A8456A;
   --color-accent-soft: #F2A9BE;
   --color-good: #6F8F73;
@@ -23,6 +24,7 @@
   --color-ink: var(--color-ink);
   --color-ink-muted: var(--color-ink-muted);
   --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
   --color-accent: var(--color-accent);
   --color-accent-dark: var(--color-accent-dark);
   --color-accent-soft: var(--color-accent-soft);

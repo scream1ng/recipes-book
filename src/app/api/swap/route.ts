@@ -50,7 +50,7 @@ export async function GET(request: Request) {
   }));
 
   // Live Coles query (via the shared 24h cache) supplements the stored options.
-  const liveColes = await getCachedColesResults(userId, catalogIngredient.name);
+  const { products: liveColes } = await getCachedColesResults(userId, catalogIngredient.name);
 
   return NextResponse.json({ stored, liveColes });
 }
