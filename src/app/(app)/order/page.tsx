@@ -7,7 +7,6 @@ import { ListGroup, ListRow, ListDivider } from "@/components/ui/ListGroup";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
 import { OrderStepper } from "@/components/order/OrderStepper";
-import { Icon } from "@/components/ui/Icon";
 
 export default async function OrderPage() {
   const [recipes, order] = await Promise.all([listRecipes(), getOrder()]);
@@ -24,7 +23,10 @@ export default async function OrderPage() {
         right={
           recipes.length > 0 ? (
             <form action={handleClear}>
-              <button type="submit" className="text-[15px] text-(--color-accent) active:opacity-60">
+              <button
+                type="submit"
+                className="inline-flex min-h-11 items-center text-[15px] text-(--color-accent) active:opacity-60"
+              >
                 Clear order
               </button>
             </form>
@@ -58,16 +60,6 @@ export default async function OrderPage() {
         </>
       )}
 
-      <SectionHeader>Pantry</SectionHeader>
-      <ListGroup>
-        <Link href="/pantry">
-          <ListRow interactive>
-            <span className="flex-1">Pantry &amp; staples</span>
-            <Icon name="chevron-right" size={16} className="text-(--color-ink-muted)" />
-          </ListRow>
-        </Link>
-      </ListGroup>
-
       {recipes.length > 0 ? (
         <StickyActionBar>
           <div className="flex flex-1 flex-col justify-center text-sm">
@@ -83,7 +75,7 @@ export default async function OrderPage() {
           <Link
             href={order.recipeCount > 0 ? "/list" : "#"}
             aria-disabled={order.recipeCount === 0}
-            className={`flex-1 rounded-full px-4 py-2.5 text-center text-sm font-medium ${
+            className={`flex-1 rounded-full px-4 py-3 text-center text-sm font-medium ${
               order.recipeCount === 0
                 ? "pointer-events-none bg-(--color-surface-alt) text-(--color-ink-muted)"
                 : "bg-(--color-accent) text-white"
@@ -96,13 +88,13 @@ export default async function OrderPage() {
         <StickyActionBar>
           <Link
             href="/scan"
-            className="flex-1 rounded-full bg-(--color-accent) px-4 py-2.5 text-center text-sm font-medium text-white"
+            className="flex-1 rounded-full bg-(--color-accent) px-4 py-3 text-center text-sm font-medium text-white"
           >
             + Scan
           </Link>
           <Link
             href="/scan/paste?from=order"
-            className="flex-1 rounded-full border border-(--color-border) px-4 py-2.5 text-center text-sm font-medium text-(--color-ink)"
+            className="flex-1 rounded-full border border-(--color-border) px-4 py-3 text-center text-sm font-medium text-(--color-ink)"
           >
             + Paste
           </Link>

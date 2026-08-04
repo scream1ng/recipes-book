@@ -21,6 +21,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "query is required" }, { status: 400 });
   }
 
-  const products = await getCachedColesResults(userId, query);
+  const { products } = await getCachedColesResults(userId, query);
   return NextResponse.json({ products });
 }

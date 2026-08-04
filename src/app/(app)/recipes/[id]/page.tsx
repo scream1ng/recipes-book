@@ -196,7 +196,7 @@ export default async function RecipeDetailPage({
         <form action={handleAddToOrder} className="flex-1">
           <button
             type="submit"
-            className="w-full rounded-full bg-(--color-accent) px-4 py-2.5 text-center text-sm font-medium text-white"
+            className="w-full rounded-full bg-(--color-accent) px-4 py-3 text-center text-sm font-medium text-white"
           >
             Add to order
           </button>

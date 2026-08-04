@@ -31,7 +31,7 @@ export function AddManualItem() {
       <button
         type="submit"
         disabled={isPending || !label.trim()}
-        className="shrink-0 rounded-full bg-(--color-accent) px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        className="shrink-0 rounded-full bg-(--color-accent) px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
       >
         Add
       </button>

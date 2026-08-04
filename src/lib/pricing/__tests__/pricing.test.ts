@@ -4,7 +4,8 @@ import { computePackCount } from "../packs";
 import { isPriceStale } from "../staleness";
 import { findCheaperAlternative } from "../savings";
 import { pickProductOption } from "../storeSelect";
-import { selectBulkRefreshTargets } from "../bulkRefresh";
+import { selectPriceRunTargets } from "../bulkRefresh";
+import { pickRecommendedColesProduct } from "../recommend";
 
 describe("cost", () => {
   it("computes proportional line cost", () => {
@@ -107,14 +108,15 @@ describe("bulkRefresh", () => {
     const rows = [
       { id: "a", name: "Milk", productOptionId: "opt-a", source: "MANUAL", priceUpdatedAt: old, lastRefreshError: null },
     ];
-    expect(selectBulkRefreshTargets(rows, 48, now)).toHaveLength(0);
+    expect(selectPriceRunTargets(rows, 48, now)).toHaveLength(0);
   });
 
-  it("skips unpriced ingredients", () => {
+  it("discovers unpriced ingredients", () => {
     const rows = [
       { id: "a", name: "Flour", productOptionId: null, source: null, priceUpdatedAt: null, lastRefreshError: null },
     ];
-    expect(selectBulkRefreshTargets(rows, 48, now)).toHaveLength(0);
+    const result = selectPriceRunTargets(rows, 48, now);
+    expect(result).toEqual([{ catalogIngredientId: "a", name: "Flour", productOptionId: null, kind: "discover" }]);
   });
 
   it("includes stale Coles options and excludes fresh ones", () => {
@@ -122,8 +124,9 @@ describe("bulkRefresh", () => {
       { id: "a", name: "Stale", productOptionId: "opt-a", source: "COLES_SCRAPE", priceUpdatedAt: old, lastRefreshError: null },
       { id: "b", name: "Fresh", productOptionId: "opt-b", source: "COLES_SCRAPE", priceUpdatedAt: fresh, lastRefreshError: null },
     ];
-    const result = selectBulkRefreshTargets(rows, 48, now);
-    expect(result.map((r) => r.id)).toEqual(["a"]);
+    const result = selectPriceRunTargets(rows, 48, now);
+    expect(result.map((r) => r.catalogIngredientId)).toEqual(["a"]);
+    expect(result[0].kind).toBe("refresh");
   });
 
   it("includes a previously-errored Coles option even if not yet stale", () => {
@@ -137,7 +140,52 @@ describe("bulkRefresh", () => {
         lastRefreshError: "Could not find a current price for this product.",
       },
     ];
-    expect(selectBulkRefreshTargets(rows, 48, now)).toHaveLength(1);
+    expect(selectPriceRunTargets(rows, 48, now)).toHaveLength(1);
+  });
+});
+
+describe("recommend", () => {
+  it("picks the candidate whose name matches best, ignoring cheaper unrelated products", () => {
+    const products = [
+      { name: "Coles Chicken Frames 1kg", packQty: 1000, priceCents: 200 },
+      { name: "Coles Chicken Breast Fillets 500g", packQty: 500, priceCents: 900 },
+    ];
+    const result = pickRecommendedColesProduct("chicken breast", products);
+    expect(result?.name).toBe("Coles Chicken Breast Fillets 500g");
+  });
+
+  it("tie-breaks equal name matches on cheapest unit price", () => {
+    const products = [
+      { name: "Coles Plain Flour 1kg", packQty: 1000, priceCents: 200 },
+      { name: "Coles Plain Flour 2kg", packQty: 2000, priceCents: 300 },
+    ];
+    const result = pickRecommendedColesProduct("plain flour", products);
+    expect(result?.name).toBe("Coles Plain Flour 2kg");
+  });
+
+  it("falls back to the first result when nothing is priced", () => {
+    const products = [{ name: "Coles Garlic", packQty: null, priceCents: null }];
+    expect(pickRecommendedColesProduct("garlic", products)).toBeNull();
+  });
+
+  it("bails out to null when top name-matches are different products, not pack-size variants", () => {
+    // Both contain the single token "garlic" so they tie on name-match score, but a
+    // 10x unit-price spread means they're different products, not the same one in
+    // different sizes — must not silently auto-pick either.
+    const products = [
+      { name: "Coles Garlic Bread 375g", packQty: 375, priceCents: 750 }, // 2.0c/g
+      { name: "Coles Garlic (loose)", packQty: 500, priceCents: 100 }, // 0.2c/g
+    ];
+    expect(pickRecommendedColesProduct("garlic", products)).toBeNull();
+  });
+
+  it("still auto-picks among tied matches that are just pack-size variants (small unit-price spread)", () => {
+    const products = [
+      { name: "Coles Garlic (loose) 100g", packQty: 100, priceCents: 60 },
+      { name: "Coles Garlic (loose) 200g", packQty: 200, priceCents: 100 },
+    ];
+    const result = pickRecommendedColesProduct("garlic", products);
+    expect(result?.name).toBe("Coles Garlic (loose) 200g");
   });
 });
 

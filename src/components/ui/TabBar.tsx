@@ -10,10 +10,16 @@ const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/pantry", label: "Ingredients", icon: "pantry" },
 ];
 
-/** /list groups under Ingredients, /scan and recipe detail group under Recipes — matches the source design's tab grouping. */
+/**
+ * Sub-views group under the tab that owns the flow they belong to, not the tab they
+ * were tapped from: /scan and recipe detail produce a recipe, so they group under
+ * Recipes (even though Order also links to /scan); /list is the current order's
+ * shopping list, so it groups under Order (even though it's reached from an
+ * "Ingredient list" button).
+ */
 function isActive(pathname: string | null, href: string) {
   if (!pathname) return false;
-  if (href === "/pantry") return pathname.startsWith("/pantry") || pathname.startsWith("/list");
+  if (href === "/order") return pathname.startsWith("/order") || pathname.startsWith("/list");
   if (href === "/recipes") return pathname.startsWith("/recipes") || pathname.startsWith("/scan");
   return pathname.startsWith(href);
 }

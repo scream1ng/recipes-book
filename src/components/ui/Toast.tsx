@@ -13,7 +13,7 @@ export function Toast({
 }) {
   return (
     <div
-      className="fixed inset-x-4 z-30 flex items-center justify-between gap-3 rounded-xl bg-(--color-ink)/95 px-4 py-3 text-sm text-white shadow-lg motion-safe:animate-[toast-in_0.2s_ease-out]"
+      className="fixed inset-x-4 z-30 mx-auto flex max-w-lg items-center justify-between gap-3 rounded-xl bg-(--color-ink)/95 px-4 py-3 text-sm text-white shadow-lg motion-safe:animate-[toast-in_0.2s_ease-out]"
       style={{ bottom: "calc(var(--tabbar-total) + 12px)" }}
       role="status"
     >

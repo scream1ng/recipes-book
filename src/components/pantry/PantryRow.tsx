@@ -8,7 +8,6 @@ import { isPriceStale } from "@/lib/pricing/staleness";
 import { ListRow } from "@/components/ui/ListGroup";
 import { StoreBadge } from "@/components/ui/StoreBadge";
 import { SwapSheet } from "@/components/recipe/SwapSheet";
-import { IngredientPriceAction } from "./IngredientPriceAction";
 
 export function PantryRow({
   ingredient,
@@ -45,16 +44,9 @@ export function PantryRow({
               </span>
             </p>
           ) : (
-            <p className="text-xs text-(--color-ink-muted)">Tap to set a price</p>
+            <p className="text-xs text-(--color-ink-muted)">No price yet</p>
           )}
         </button>
-        {ingredient.source !== "MANUAL" && (
-          <IngredientPriceAction
-            catalogIngredientId={ingredient.id}
-            productOptionId={ingredient.productOptionId}
-            onNeedsSheet={() => setSwapOpen(true)}
-          />
-        )}
       </ListRow>
 
       {swapOpen && (

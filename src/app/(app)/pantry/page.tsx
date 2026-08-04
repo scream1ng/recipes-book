@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { getPantryIngredients } from "@/lib/actions/catalog";
 import { getSettings } from "@/lib/actions/settings";
-import { selectBulkRefreshTargets } from "@/lib/pricing/bulkRefresh";
-import { NavBar } from "@/components/ui/NavBar";
+import { selectPriceRunTargets } from "@/lib/pricing/bulkRefresh";
 import { ListGroup, ListRow, ListDivider } from "@/components/ui/ListGroup";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { PantryRow } from "@/components/pantry/PantryRow";
-import { BulkRefreshBar } from "@/components/pantry/BulkRefreshBar";
+import { PriceRunBar } from "@/components/pantry/PriceRunBar";
 import { Icon } from "@/components/ui/Icon";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -22,15 +21,14 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default async function PantryPage() {
   const [grouped, settings] = await Promise.all([getPantryIngredients(), getSettings()]);
   const categories = Object.keys(grouped);
-  const eligibleCount = selectBulkRefreshTargets(
+  const eligibleCount = selectPriceRunTargets(
     Object.values(grouped).flat(),
     settings.stalePriceHours
   ).length;
 
   return (
     <>
-      <NavBar title="Ingredients" />
-      <BulkRefreshBar eligibleCount={eligibleCount} />
+      <PriceRunBar title="Ingredients" eligibleCount={eligibleCount} />
 
       {categories.length === 0 ? (
         <p className="mt-12 text-center text-(--color-ink-muted)">

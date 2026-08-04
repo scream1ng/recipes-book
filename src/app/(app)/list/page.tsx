@@ -3,6 +3,7 @@ import { centsToDisplay } from "@/lib/money";
 import { ListItemRow } from "@/components/list/ListItemRow";
 import { AddManualItem } from "@/components/list/AddManualItem";
 import { NavBar } from "@/components/ui/NavBar";
+import { BackLink } from "@/components/ui/BackLink";
 import { ListGroup, ListDivider } from "@/components/ui/ListGroup";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
@@ -30,9 +31,13 @@ export default async function ShoppingListPage() {
     <>
       <NavBar
         title="Shopping list"
+        left={<BackLink href="/order" label="Order" />}
         right={
           <form action={handleClearChecked}>
-            <button type="submit" className="text-[15px] text-(--color-accent) active:opacity-60">
+            <button
+              type="submit"
+              className="inline-flex min-h-11 items-center text-[15px] text-(--color-accent) active:opacity-60"
+            >
               Clear
             </button>
           </form>

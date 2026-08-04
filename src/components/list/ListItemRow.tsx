@@ -7,6 +7,7 @@ import { centsToDisplay } from "@/lib/money";
 import { ListRow } from "@/components/ui/ListGroup";
 import { StoreBadge } from "@/components/ui/StoreBadge";
 import { SwipeRow } from "@/components/ui/SwipeRow";
+import { Icon } from "@/components/ui/Icon";
 
 export function ListItemRow({ row }: { row: ShoppingListRow }) {
   const [isPending, startTransition] = useTransition();
@@ -21,15 +22,19 @@ export function ListItemRow({ row }: { row: ShoppingListRow }) {
 
   const content = (
     <ListRow>
-      <span className="-mx-3 flex h-11 w-11 shrink-0 items-center justify-center">
+      <label className="-mx-3 flex h-11 w-11 shrink-0 items-center justify-center">
         <input
           type="checkbox"
           checked={row.isChecked}
           disabled={isPending}
           onChange={toggle}
-          className="h-5 w-5 accent-(--color-accent)"
+          aria-label={row.label}
+          className="peer sr-only"
         />
-      </span>
+        <span className="flex h-5 w-5 items-center justify-center rounded-full border border-(--color-border) peer-checked:border-(--color-accent) peer-checked:bg-(--color-accent) peer-disabled:opacity-40">
+          {row.isChecked && <Icon name="checkmark" size={12} className="text-white" />}
+        </span>
+      </label>
       <div className={`min-w-0 flex-1 ${row.isChecked ? "text-(--color-ink-muted) line-through" : ""}`}>
         <p className="truncate font-medium">{row.label}</p>
         {row.store && (

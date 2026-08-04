@@ -43,13 +43,13 @@ export default async function LibraryPage() {
       <StickyActionBar>
         <Link
           href="/scan"
-          className="flex-1 rounded-full bg-(--color-accent) px-4 py-2.5 text-center text-sm font-medium text-white"
+          className="flex-1 rounded-full bg-(--color-accent) px-4 py-3 text-center text-sm font-medium text-white"
         >
           + Scan
         </Link>
         <Link
           href="/scan/paste?from=recipes"
-          className="flex-1 rounded-full border border-(--color-border) px-4 py-2.5 text-center text-sm font-medium"
+          className="flex-1 rounded-full border border-(--color-border) px-4 py-3 text-center text-sm font-medium"
         >
           + Paste
         </Link>
