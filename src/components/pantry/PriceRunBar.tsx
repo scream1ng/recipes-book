@@ -102,7 +102,7 @@ export function PriceRunBar({ title, eligibleCount }: { title: string; eligibleC
         title={title}
         right={
           running ? (
-            <button type="button" onClick={stop} className="inline-flex min-h-11 items-center text-sm font-medium">
+            <button type="button" onClick={stop} className="inline-flex min-h-11 items-center text-sm font-medium active:opacity-60">
               Stop
             </button>
           ) : (
@@ -110,7 +110,7 @@ export function PriceRunBar({ title, eligibleCount }: { title: string; eligibleC
               type="button"
               onClick={start}
               disabled={eligibleCount === 0}
-              className="inline-flex min-h-11 items-center text-sm font-medium disabled:text-(--color-ink-muted)"
+              className="inline-flex min-h-11 items-center text-sm font-medium active:opacity-60 disabled:text-(--color-ink-muted)"
             >
               Update prices{eligibleCount > 0 ? ` (${eligibleCount})` : ""}
             </button>

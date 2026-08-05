@@ -81,10 +81,10 @@ function computeIngredientCosts(
   return { lines, totalCents };
 }
 
-export async function getRecipe(id: string, serves?: number) {
+export async function getRecipe(id: string) {
   const userId = await requireUser();
   const recipe = await fetchRecipeWithIngredients(userId, id);
-  const targetServes = serves ?? recipe.baseServes;
+  const targetServes = recipe.baseServes;
   const { lines, totalCents } = computeIngredientCosts(recipe.ingredients, recipe.baseServes, targetServes);
   const pantryCents = pantryCostCents(lines);
 
@@ -208,6 +208,32 @@ export async function saveScannedRecipe(draft: RecipeDraft) {
   return createRecipe({ ...draft, sourceType: "SCAN" });
 }
 
+// ---------- getRecipeForEdit ----------
+
+export async function getRecipeForEdit(id: string) {
+  const userId = await requireUser();
+  const recipe = await fetchRecipeWithIngredients(userId, id);
+
+  return {
+    id: recipe.id,
+    name: recipe.name,
+    tag: recipe.tag,
+    minutes: recipe.minutes,
+    baseServes: recipe.baseServes,
+    methodSteps: recipe.methodSteps,
+    ingredients: recipe.ingredients.map((ing) => ({
+      catalogIngredientId: ing.catalogIngredientId,
+      displayName: ing.displayName,
+      rawAmount: ing.rawAmount,
+      rawUnit: ing.rawUnit,
+      qtyCanonical: ing.qtyCanonical,
+      needsReview: ing.needsReview,
+      reviewNote: ing.reviewNote,
+      excludeFromCost: ing.excludeFromCost,
+    })),
+  };
+}
+
 // ---------- updateRecipe / deleteRecipe ----------
 
 export interface UpdateRecipeInput {
@@ -216,6 +242,7 @@ export interface UpdateRecipeInput {
   minutes?: number | null;
   baseServes?: number;
   ingredients?: RecipeIngredientDraft[];
+  methodSteps?: string[];
 }
 
 export async function updateRecipe(id: string, input: UpdateRecipeInput) {
@@ -232,6 +259,7 @@ export async function updateRecipe(id: string, input: UpdateRecipeInput) {
         tag: input.tag,
         minutes: input.minutes,
         baseServes: input.baseServes,
+        methodSteps: input.methodSteps,
       },
     });
 
@@ -257,6 +285,7 @@ export async function updateRecipe(id: string, input: UpdateRecipeInput) {
 
   revalidatePath("/recipes");
   revalidatePath(`/recipes/${id}`);
+  revalidatePath("/list");
 }
 
 export async function deleteRecipe(id: string) {
@@ -272,10 +301,10 @@ export async function deleteRecipe(id: string) {
 
 // ---------- getCostBreakdown ----------
 
-export async function getCostBreakdown(id: string, serves?: number) {
+export async function getCostBreakdown(id: string) {
   const userId = await requireUser();
   const recipe = await fetchRecipeWithIngredients(userId, id);
-  const targetServes = serves ?? recipe.baseServes;
+  const targetServes = recipe.baseServes;
   const { lines, totalCents } = computeIngredientCosts(recipe.ingredients, recipe.baseServes, targetServes);
 
   const items = await Promise.all(

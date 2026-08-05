@@ -23,7 +23,7 @@ export function DeleteRecipeButton({ recipeId, name }: { recipeId: string; name:
         type="button"
         onClick={() => setConfirming(true)}
         disabled={isPending}
-        className="mt-6 w-full text-center text-sm text-(--color-destructive) active:opacity-60"
+        className="mt-6 flex min-h-11 w-full items-center justify-center text-sm text-(--color-destructive) active:opacity-60"
       >
         Delete recipe
       </button>

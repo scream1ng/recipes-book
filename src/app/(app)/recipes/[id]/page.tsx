@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCostBreakdown, getRecipe, markBakedToday } from "@/lib/actions/recipes";
 import { setOrderQty } from "@/lib/actions/order";
 import { getSettings } from "@/lib/actions/settings";
 import { centsToDisplay } from "@/lib/money";
-import { ServesStepper } from "@/components/recipe/ServesStepper";
 import { IngredientRow } from "@/components/recipe/IngredientRow";
 import { RecipeHeaderActions } from "@/components/recipe/RecipeHeaderActions";
 import { DeleteRecipeButton } from "@/components/recipe/DeleteRecipeButton";
@@ -17,19 +17,11 @@ import { Icon } from "@/components/ui/Icon";
 
 const dateFormatter = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric" });
 
-export default async function RecipeDetailPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ serves?: string }>;
-}) {
+export default async function RecipeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { serves } = await searchParams;
-  const targetServes = serves ? Number(serves) || undefined : undefined;
   const [recipe, breakdown, settings] = await Promise.all([
-    getRecipe(id, targetServes),
-    getCostBreakdown(id, targetServes),
+    getRecipe(id),
+    getCostBreakdown(id),
     getSettings(),
   ]);
 
@@ -49,13 +41,24 @@ export default async function RecipeDetailPage({
 
   return (
     <>
-      <NavBar left={<BackLink href="/recipes" label="Recipes" />} />
+      <NavBar
+        left={<BackLink href="/recipes" label="Recipes" />}
+        right={
+          <Link
+            href={`/recipes/${id}/edit`}
+            className="-mr-2 flex h-11 items-center gap-1 pl-3 pr-2 font-medium active:opacity-60"
+          >
+            <Icon name="pencil" size={18} />
+            <span>Edit</span>
+          </Link>
+        }
+      />
 
       <RecipeHeaderActions recipeId={id} name={recipe.name} tag={recipe.tag} />
 
-      <div className="pt-4">
-        <ServesStepper recipeId={id} current={recipe.targetServes} />
-      </div>
+      <p className="pt-4 text-sm text-(--color-ink-muted)">
+        Serves {recipe.baseServes}
+      </p>
 
       <SectionHeader>Ingredients · {recipe.ingredients.length}</SectionHeader>
       <ListGroup>

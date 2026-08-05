@@ -54,7 +54,7 @@ export function RecipeHeaderActions({
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="text-left active:opacity-60"
+          className="min-h-11 text-left active:opacity-60"
         >
           <h1 className="recipe-name text-3xl">{name}</h1>
         </button>
