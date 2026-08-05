@@ -384,6 +384,28 @@ export async function toggleOnHand(catalogIngredientId: string) {
   revalidatePricePaths();
 }
 
+export async function deleteCatalogIngredient(catalogIngredientId: string) {
+  const userId = await requireUser();
+  const existing = await prisma.catalogIngredient.findFirst({
+    where: { id: catalogIngredientId, userId },
+  });
+  if (!existing) throw new Error("Catalog ingredient not found");
+
+  const usedIn = await prisma.recipeIngredient.findMany({
+    where: { catalogIngredientId },
+    select: { recipe: { select: { name: true } } },
+    distinct: ["recipeId"],
+  });
+  if (usedIn.length > 0) {
+    const names = usedIn.map((r) => r.recipe.name).join(", ");
+    throw new Error(`Used in ${names}. Remove it from those recipes first.`);
+  }
+
+  await prisma.catalogIngredient.delete({ where: { id: catalogIngredientId } });
+
+  revalidatePricePaths();
+}
+
 export interface PantryIngredientRow {
   id: string;
   name: string;
