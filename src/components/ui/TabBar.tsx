@@ -8,6 +8,7 @@ const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/order", label: "Order", icon: "order" },
   { href: "/recipes", label: "Recipes", icon: "recipes" },
   { href: "/pantry", label: "Ingredients", icon: "pantry" },
+  { href: "/settings", label: "Settings", icon: "settings" },
 ];
 
 /**
