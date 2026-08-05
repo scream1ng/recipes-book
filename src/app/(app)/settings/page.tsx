@@ -2,7 +2,6 @@ import { getSettings } from "@/lib/actions/settings";
 import { signOut } from "@/lib/auth";
 import { SettingsForm } from "@/components/SettingsForm";
 import { NavBar } from "@/components/ui/NavBar";
-import { BackLink } from "@/components/ui/BackLink";
 import { ListGroup, ListRow } from "@/components/ui/ListGroup";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
@@ -16,7 +15,7 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <NavBar title="Settings" left={<BackLink href="/pantry" label="Ingredients" />} />
+      <NavBar title="Settings" />
 
       <SettingsForm settings={settings} />
 

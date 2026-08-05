@@ -1,12 +1,9 @@
-import Link from "next/link";
 import { getPantryIngredients } from "@/lib/actions/catalog";
 import { getSettings } from "@/lib/actions/settings";
 import { selectPriceRunTargets } from "@/lib/pricing/bulkRefresh";
-import { ListGroup, ListRow, ListDivider } from "@/components/ui/ListGroup";
-import { SectionHeader } from "@/components/ui/SectionHeader";
+import { ListGroup, ListDivider } from "@/components/ui/ListGroup";
 import { PantryRow } from "@/components/pantry/PantryRow";
 import { PriceRunBar } from "@/components/pantry/PriceRunBar";
-import { Icon } from "@/components/ui/Icon";
 
 const CATEGORY_LABELS: Record<string, string> = {
   MEAT_POULTRY: "Meat & Poultry",
@@ -60,16 +57,6 @@ export default async function PantryPage() {
           );
         })
       )}
-
-      <SectionHeader>More</SectionHeader>
-      <ListGroup>
-        <Link href="/settings">
-          <ListRow interactive>
-            <span className="flex-1">Settings</span>
-            <Icon name="chevron-right" size={16} className="text-(--color-ink-muted)" />
-          </ListRow>
-        </Link>
-      </ListGroup>
     </>
   );
 }
