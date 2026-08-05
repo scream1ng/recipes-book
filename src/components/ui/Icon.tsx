@@ -14,6 +14,7 @@ const PATHS = {
   plus: "M12 5v14M5 12h14",
   minus: "M5 12h14",
   checkmark: "M5 12.5l4.5 4.5L19 7",
+  pencil: "M16.7 4.3a2.1 2.1 0 013 3L8.2 18.8 4 20l1.2-4.2L16.7 4.3zM14.5 6.5l3 3",
   "arrow-clockwise":
     "M4 12a8 8 0 0114-5.3M18 12a8 8 0 01-14 5.3M18 3v4.5h-4.5M6 21v-4.5h4.5",
 } as const;
