@@ -57,6 +57,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     session({ session, token }) {
       if (session.user) session.user.id = token.id as string;
+      session.issuedAt = token.iat;
       return session;
     },
   },
@@ -74,11 +75,22 @@ export const requireUser = cache(async function requireUser() {
     redirect("/signin");
   }
 
-  await prisma.userSettings.upsert({
-    where: { userId },
-    update: {},
-    create: { userId },
-  });
+  const [, user] = await Promise.all([
+    prisma.userSettings.upsert({
+      where: { userId },
+      update: {},
+      create: { userId },
+    }),
+    prisma.user.findUnique({ where: { id: userId }, select: { passwordChangedAt: true } }),
+  ]);
+
+  // A password reset invalidates JWTs issued before it — JWT sessions can't be
+  // revoked server-side otherwise, so this is the one point that catches a stale
+  // session cookie post-reset.
+  const issuedAt = session?.issuedAt;
+  if (user?.passwordChangedAt && issuedAt && user.passwordChangedAt.getTime() / 1000 > issuedAt) {
+    redirect("/signin");
+  }
 
   return userId;
 });
