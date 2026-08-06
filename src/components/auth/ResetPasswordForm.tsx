@@ -1,33 +1,35 @@
 "use client";
 
 import { useActionState } from "react";
-import Link from "next/link";
-import { signInAction, type AuthFormState } from "@/lib/actions/credentials";
+import { resetPasswordAction, type AuthFormState } from "@/lib/actions/credentials";
 
 const initialState: AuthFormState = {};
 
-export function SignInForm() {
-  const [state, formAction, isPending] = useActionState(signInAction, initialState);
+export function ResetPasswordForm({ token }: { token: string }) {
+  const [state, formAction, isPending] = useActionState(resetPasswordAction, initialState);
 
   return (
     <form action={formAction} className="flex w-full max-w-sm flex-col gap-3 text-left">
+      <input type="hidden" name="token" value={token} />
       <label className="flex flex-col gap-1 text-sm">
-        Email
-        <input
-          type="email"
-          name="email"
-          required
-          autoComplete="email"
-          className="rounded-lg border border-(--color-border) px-3 py-2 text-base"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        Password
+        New password
         <input
           type="password"
           name="password"
           required
-          autoComplete="current-password"
+          minLength={8}
+          autoComplete="new-password"
+          className="rounded-lg border border-(--color-border) px-3 py-2 text-base"
+        />
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        Confirm password
+        <input
+          type="password"
+          name="confirmPassword"
+          required
+          minLength={8}
+          autoComplete="new-password"
           className="rounded-lg border border-(--color-border) px-3 py-2 text-base"
         />
       </label>
@@ -39,19 +41,8 @@ export function SignInForm() {
         disabled={isPending}
         className="mt-1 rounded-full bg-(--color-accent) px-6 py-3 font-medium text-white shadow-sm hover:bg-(--color-accent-dark) disabled:opacity-40"
       >
-        {isPending ? "Signing in…" : "Sign in"}
+        {isPending ? "Updating…" : "Update password"}
       </button>
-
-      <Link href="/forgot-password" className="-mt-1 text-center text-sm text-(--color-accent-dark)">
-        Forgot password?
-      </Link>
-
-      <p className="text-center text-sm text-(--color-ink-muted)">
-        No account yet?{" "}
-        <Link href="/signup" className="font-medium text-(--color-accent-dark)">
-          Sign up
-        </Link>
-      </p>
     </form>
   );
 }

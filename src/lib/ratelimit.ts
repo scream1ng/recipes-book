@@ -9,6 +9,12 @@ interface Bucket {
 
 const buckets = new Map<string, Bucket>();
 
+// Every bucket so far has been keyed by authenticated userId (bounded by real user
+// count). pw-reset-* buckets below are keyed by unauthenticated input (IP, hashed
+// email), so an anonymous caller could otherwise grow this Map without limit. Cap it
+// and evict oldest-inserted entries — simple, not true LRU, but enough to bound memory.
+const MAX_BUCKETS = 5000;
+
 export interface RateLimitOptions {
   capacity: number;
   refillPerSecond: number;
@@ -25,14 +31,17 @@ export function checkRateLimit(
   bucket.tokens = Math.min(capacity, bucket.tokens + elapsedSeconds * refillPerSecond);
   bucket.lastRefill = now;
 
-  if (bucket.tokens < 1) {
-    buckets.set(key, bucket);
-    return false;
+  const allowed = bucket.tokens >= 1;
+  if (allowed) bucket.tokens -= 1;
+
+  buckets.delete(key); // re-insert to move this key to the end (insertion-order eviction)
+  buckets.set(key, bucket);
+  if (buckets.size > MAX_BUCKETS) {
+    const oldestKey = buckets.keys().next().value;
+    if (oldestKey !== undefined) buckets.delete(oldestKey);
   }
 
-  bucket.tokens -= 1;
-  buckets.set(key, bucket);
-  return true;
+  return allowed;
 }
 
 /** Coles search: generous enough for autocomplete debounce, tight enough to protect the scraper. */
@@ -53,4 +62,14 @@ export function checkColesBulkRunRateLimit(userId: string): boolean {
 /** Per-item bucket for a bulk run — separate from the row button's bucket so they don't starve each other. */
 export function checkColesBulkRefreshRateLimit(userId: string): boolean {
   return checkRateLimit(`coles-bulk:${userId}`, { capacity: 120, refillPerSecond: 1 });
+}
+
+/** Password reset requests, per email: cheap first line before the DB-level cooldown. */
+export function checkPasswordResetEmailRateLimit(emailKey: string): boolean {
+  return checkRateLimit(`pw-reset-email:${emailKey}`, { capacity: 3, refillPerSecond: 1 / 900 });
+}
+
+/** Password reset requests, per requesting IP — catches one IP cycling through many emails. */
+export function checkPasswordResetIpRateLimit(ip: string): boolean {
+  return checkRateLimit(`pw-reset-ip:${ip}`, { capacity: 10, refillPerSecond: 1 / 300 });
 }
