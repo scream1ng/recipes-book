@@ -125,35 +125,19 @@ export function ScanCapture() {
 
       <div className="flex w-full flex-col items-center gap-4 pb-2">
         {photos.length < MAX_PHOTOS && (
-          <div className="flex items-center gap-3">
-            <label className="relative rounded-full bg-(--color-accent) px-6 py-3 font-medium text-white">
-              {photos.length === 0 ? "Take photo" : "Add another photo"}
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) addPhoto(file);
-                  e.target.value = "";
-                }}
-              />
-            </label>
-            <label className="relative rounded-full border border-(--color-border) px-6 py-3 font-medium text-(--color-ink)">
-              Choose from gallery
-              <input
-                type="file"
-                accept="image/*"
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) addPhoto(file);
-                  e.target.value = "";
-                }}
-              />
-            </label>
-          </div>
+          <label className="relative rounded-full bg-(--color-accent) px-6 py-3 font-medium text-white">
+            {photos.length === 0 ? "Take photo" : "Add another photo"}
+            <input
+              type="file"
+              accept="image/*"
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) addPhoto(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
         )}
 
         {photos.length > 0 && (
