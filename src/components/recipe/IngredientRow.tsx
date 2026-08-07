@@ -20,6 +20,7 @@ export interface IngredientRowData {
     productName: string;
     packLabel: string;
     unitPriceCents: number | null;
+    lowConfidence: boolean;
   } | null;
   costCents: number | null;
 }
@@ -66,6 +67,7 @@ export function IngredientRow({
                     · {formatUnitPrice(ingredient.product.unitPriceCents, ingredient.canonicalUnit)}
                   </span>
                 )}
+              {ingredient.product.lowConfidence && <span className="shrink-0"> · check price</span>}
             </span>
           ) : ingredient.needsReview ? (
             <span className="block text-xs text-(--color-accent-dark)">

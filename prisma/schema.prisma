@@ -176,6 +176,11 @@ model ProductOption {
   priceUpdatedAt      DateTime            @default(now())
   lastRefreshError    String?
   isArchived          Boolean             @default(false)
+  // Set when this price was auto-picked from a genuinely ambiguous set of
+  // Coles search results (e.g. "cream" matching dairy cream, ice cream, and
+  // body lotion at very different prices) — a ballpark, not a confident
+  // match. Shown as a "check price" note wherever this price appears.
+  lowConfidence       Boolean             @default(false)
 
   catalogIngredient CatalogIngredient  @relation("CatalogProductOptions", fields: [catalogIngredientId], references: [id], onDelete: Cascade)
   selectedByCatalog CatalogIngredient? @relation("SelectedProductOption")

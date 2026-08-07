@@ -151,41 +151,48 @@ describe("recommend", () => {
       { name: "Coles Chicken Breast Fillets 500g", packQty: 500, priceCents: 900 },
     ];
     const result = pickRecommendedColesProduct("chicken breast", products);
-    expect(result?.name).toBe("Coles Chicken Breast Fillets 500g");
+    expect(result?.product.name).toBe("Coles Chicken Breast Fillets 500g");
+    expect(result?.confidence).toBe("high");
   });
 
-  it("tie-breaks equal name matches on cheapest unit price", () => {
+  it("tie-breaks equal name matches on cheapest unit price, high confidence", () => {
     const products = [
       { name: "Coles Plain Flour 1kg", packQty: 1000, priceCents: 200 },
       { name: "Coles Plain Flour 2kg", packQty: 2000, priceCents: 300 },
     ];
     const result = pickRecommendedColesProduct("plain flour", products);
-    expect(result?.name).toBe("Coles Plain Flour 2kg");
+    expect(result?.product.name).toBe("Coles Plain Flour 2kg");
+    expect(result?.confidence).toBe("high");
   });
 
-  it("falls back to the first result when nothing is priced", () => {
+  it("falls back to null when nothing is priced", () => {
     const products = [{ name: "Coles Garlic", packQty: null, priceCents: null }];
     expect(pickRecommendedColesProduct("garlic", products)).toBeNull();
   });
 
-  it("bails out to null when top name-matches are different products, not pack-size variants", () => {
+  it("still picks (as a low-confidence ballpark) when top name-matches are different products, not pack-size variants", () => {
     // Both contain the single token "garlic" so they tie on name-match score, but a
     // 10x unit-price spread means they're different products, not the same one in
-    // different sizes — must not silently auto-pick either.
+    // different sizes — auto-picked as a ballpark (median unit price, not cheapest,
+    // to avoid systematically understating cost), flagged low confidence rather
+    // than left blank.
     const products = [
       { name: "Coles Garlic Bread 375g", packQty: 375, priceCents: 750 }, // 2.0c/g
       { name: "Coles Garlic (loose)", packQty: 500, priceCents: 100 }, // 0.2c/g
     ];
-    expect(pickRecommendedColesProduct("garlic", products)).toBeNull();
+    const result = pickRecommendedColesProduct("garlic", products);
+    expect(result?.confidence).toBe("low");
+    expect(result?.product.name).toBe("Coles Garlic Bread 375g"); // higher of the two -> the "median" of a 2-item set
   });
 
-  it("still auto-picks among tied matches that are just pack-size variants (small unit-price spread)", () => {
+  it("still auto-picks confidently among tied matches that are just pack-size variants (small unit-price spread)", () => {
     const products = [
       { name: "Coles Garlic (loose) 100g", packQty: 100, priceCents: 60 },
       { name: "Coles Garlic (loose) 200g", packQty: 200, priceCents: 100 },
     ];
     const result = pickRecommendedColesProduct("garlic", products);
-    expect(result?.name).toBe("Coles Garlic (loose) 200g");
+    expect(result?.product.name).toBe("Coles Garlic (loose) 200g");
+    expect(result?.confidence).toBe("high");
   });
 });
 

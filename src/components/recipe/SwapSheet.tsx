@@ -21,6 +21,7 @@ interface StoredOption {
   isCurrent: boolean;
   isStale: boolean;
   lastRefreshError: string | null;
+  lowConfidence: boolean;
 }
 
 interface LiveColesProduct {
@@ -221,6 +222,9 @@ export function SwapSheet({
                       <span className="text-(--color-ink-muted)">({opt.packLabel})</span>
                       {opt.isStale && (
                         <span className="ml-2 text-xs text-(--color-accent-dark)">stale price</span>
+                      )}
+                      {opt.lowConfidence && (
+                        <span className="ml-2 text-xs text-(--color-accent-dark)">check price</span>
                       )}
                       {opt.lastRefreshError && (
                         <span className="mt-0.5 block text-xs text-(--color-accent-dark)">

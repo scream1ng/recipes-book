@@ -7,12 +7,7 @@ import { NavBar } from "@/components/ui/NavBar";
 import { Spinner } from "@/components/ui/Spinner";
 import { Toast } from "@/components/ui/Toast";
 
-const ITEM_DELAY_MS = 750;
 const CONSECUTIVE_EMPTY_LIMIT = 5;
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 /**
  * One "Update prices" run over the Ingredients screen: discovers a Coles price for
@@ -76,9 +71,6 @@ export function PriceRunBar({ title, eligibleCount }: { title: string; eligibleC
         stoppedReason = "Coles isn't responding — try again later";
         break;
       }
-
-      // Cached lookups made no network call — no need to rate-limit-friendly pace them.
-      if (i < targets.length - 1 && !result.cached) await delay(ITEM_DELAY_MS);
     }
 
     setProgress(null);

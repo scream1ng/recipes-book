@@ -17,6 +17,7 @@ export interface ShoppingListRow {
   packsToBuy: number | null;
   totalCents: number;
   isChecked: boolean;
+  lowConfidence: boolean;
 }
 
 // ---------- getShoppingList ----------
@@ -55,6 +56,7 @@ export async function getShoppingList() {
         packsToBuy: r.packsToBuy,
         totalCents: r.totalCents,
         isChecked: tick?.isChecked ?? false,
+        lowConfidence: r.lowConfidence,
       };
     });
   }
@@ -77,6 +79,7 @@ export async function getShoppingList() {
         packsToBuy: pack?.packsToBuy ?? null,
         totalCents: pack?.totalCents ?? 0,
         isChecked: item.isChecked,
+        lowConfidence: option?.lowConfidence ?? false,
       };
     });
   }

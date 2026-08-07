@@ -120,6 +120,7 @@ export async function getOrderIngredientList() {
         packsToBuy: pack?.packsToBuy ?? null,
         totalCents: pack?.totalCents ?? 0,
         priceUpdatedAt: option?.priceUpdatedAt ?? null,
+        lowConfidence: option?.lowConfidence ?? false,
       };
     });
 
@@ -142,4 +143,5 @@ export interface OrderIngredientRow {
   packsToBuy: number | null;
   totalCents: number;
   priceUpdatedAt: Date | null;
+  lowConfidence: boolean;
 }

@@ -47,10 +47,13 @@ export async function GET(request: Request) {
     isCurrent: option.id === catalogIngredient.selectedProductOptionId,
     isStale: isPriceStale(option.priceUpdatedAt, settings.stalePriceHours),
     lastRefreshError: option.lastRefreshError,
+    lowConfidence: option.lowConfidence,
   }));
 
   // Live Coles query (via the shared 24h cache) supplements the stored options.
-  const { products: liveColes } = await getCachedColesResults(userId, catalogIngredient.name);
+  const { products: liveColes } = await getCachedColesResults(userId, catalogIngredient.name, {
+    priority: "interactive",
+  });
 
   return NextResponse.json({ stored, liveColes });
 }

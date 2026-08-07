@@ -42,6 +42,7 @@ export function ListItemRow({ row }: { row: ShoppingListRow }) {
             <StoreBadge store={row.store} />
             <span className="truncate">
               {row.packLabel} {row.packsToBuy != null ? `× ${row.packsToBuy}` : ""}
+              {row.lowConfidence ? " · check price" : ""}
             </span>
           </p>
         )}
