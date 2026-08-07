@@ -45,9 +45,4 @@ export const colesProductSchema = z.object({
   productId: z.string().nullable(),
 });
 
-export const colesParseResultSchema = z.object({
-  products: z.array(colesProductSchema),
-});
-
-export type ColesParseResult = z.infer<typeof colesParseResultSchema>;
 export type ColesProduct = z.infer<typeof colesProductSchema>;

@@ -123,6 +123,7 @@ export async function getRecipe(id: string) {
             packLabel: option.packLabel,
             priceUpdatedAt: option.priceUpdatedAt,
             unitPriceCents: option.packQty > 0 ? option.priceCents / option.packQty : null,
+            lowConfidence: option.lowConfidence,
           }
         : null,
       costCents,
@@ -364,6 +365,15 @@ export async function applySwapSuggestion(catalogIngredientId: string, productOp
     where: { id: catalogIngredientId },
     data: { selectedProductOptionId: productOptionId },
   });
+
+  // Selecting via the swap sheet is the user reviewing/confirming this price
+  // themselves — clear any auto-pick "check price" flag.
+  if (option.lowConfidence) {
+    await prisma.productOption.update({
+      where: { id: productOptionId },
+      data: { lowConfidence: false },
+    });
+  }
 
   revalidatePath("/recipes");
   revalidatePath("/list");

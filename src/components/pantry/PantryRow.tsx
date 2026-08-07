@@ -50,18 +50,21 @@ export function PantryRow({
             className="-my-2 min-w-0 flex-1 py-2 text-left active:bg-(--color-surface-alt)"
           >
             <p className="truncate font-medium">{ingredient.name}</p>
-            {ingredient.lastRefreshError ? (
-              <p className="text-xs text-(--color-accent-dark)">{ingredient.lastRefreshError}</p>
-            ) : ingredient.priceCents != null ? (
+            {ingredient.priceCents != null ? (
               <p className="mt-0.5 flex items-center gap-1.5 text-xs text-(--color-ink-muted)">
                 <StoreBadge store={ingredient.store} />
                 <span className="truncate">
                   {centsToDisplay(ingredient.priceCents)}
                   {ingredient.packLabel ? ` · ${ingredient.packLabel}` : ""}
                   {stale ? " · stale" : ""}
+                  {ingredient.lowConfidence ? " · check price" : ""}
+                  {ingredient.lastRefreshError ? " · couldn't refresh" : ""}
                 </span>
               </p>
             ) : (
+              // lastRefreshError is only ever set on an option that already has a
+              // price (see refreshProductPriceCore) — discover failures for a
+              // never-priced ingredient just leave it here, no separate error state.
               <p className="text-xs text-(--color-ink-muted)">No price yet</p>
             )}
           </button>

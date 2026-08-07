@@ -140,7 +140,7 @@ const REFRESH_CACHE_MAX_AGE_MS = 60 * 60 * 1000; // 1h: user-tapped refresh tole
 async function refreshProductPriceCore(
   userId: string,
   productOptionId: string,
-  opts: { maxAgeMs?: number; revalidate: boolean }
+  opts: { maxAgeMs?: number; revalidate: boolean; priority?: "bulk" | "interactive" }
 ) {
   const option = await prisma.productOption.findFirst({
     where: { id: productOptionId, catalogIngredient: { userId } },
@@ -152,12 +152,18 @@ async function refreshProductPriceCore(
   }
 
   const { getCachedColesResults } = await import("@/lib/scrape/coles-cache");
-  const { products: results, cached } = await getCachedColesResults(userId, option.catalogIngredient.name, {
-    maxAgeMs: opts.maxAgeMs,
-  });
+  const { products: results, cached, error, stale } = await getCachedColesResults(
+    userId,
+    option.catalogIngredient.name,
+    { maxAgeMs: opts.maxAgeMs, priority: opts.priority ?? "bulk" }
+  );
+  // Match by Coles product id only — picking an arbitrary result[0] among
+  // possibly dozens of unrelated candidates (e.g. "cream" matches lotion,
+  // frosting, ice cream) would silently write a wrong price/pack into cost
+  // math. No id to match against means we can't safely refresh this option.
   const match = option.colesProductId
-    ? (results.find((r) => r.productId === option.colesProductId) ?? results[0])
-    : results[0];
+    ? results.find((r) => r.productId === option.colesProductId)
+    : undefined;
 
   if (opts.revalidate) {
     revalidatePath("/pantry");
@@ -168,16 +174,27 @@ async function refreshProductPriceCore(
   if (!match || match.priceCents == null) {
     const failed = await prisma.productOption.update({
       where: { id: option.id },
-      data: { lastRefreshError: "Could not find a current price for this product." },
+      data: {
+        lastRefreshError: !option.colesProductId
+          ? "Can't auto-refresh this one — re-pick it from Coles to enable refresh."
+          : error
+            ? "Coles isn't responding right now — showing the last known price."
+            : "Could not find a current price for this product.",
+      },
     });
-    return { ok: false as const, option: failed, cached };
+    return { ok: false as const, option: failed, cached, error };
   }
 
   const updated = await prisma.productOption.update({
     where: { id: option.id },
     data: {
+      productName: match.name,
+      packLabel: match.packLabel || option.packLabel,
+      packQty: match.packQty ?? option.packQty,
       priceCents: match.priceCents,
-      priceUpdatedAt: new Date(),
+      // A stale-cache-served price isn't actually fresh — don't stamp it as
+      // just-refreshed, or the staleness badge goes silently wrong.
+      priceUpdatedAt: stale ? option.priceUpdatedAt : new Date(),
       lastRefreshError: null,
     },
   });
@@ -186,7 +203,7 @@ async function refreshProductPriceCore(
     data: { productOptionId: option.id, priceCents: match.priceCents },
   });
 
-  return { ok: true as const, option: updated, cached };
+  return { ok: true as const, option: updated, cached, error: false };
 }
 
 /**
@@ -204,6 +221,7 @@ export async function refreshProductPrice(productOptionId: string) {
   const result = await refreshProductPriceCore(userId, productOptionId, {
     maxAgeMs: REFRESH_CACHE_MAX_AGE_MS,
     revalidate: true,
+    priority: "interactive",
   });
   return result.option;
 }
@@ -216,6 +234,7 @@ export interface AddColesProductInput {
   priceCents: number;
   colesProductId?: string | null;
   sourceUrl?: string | null;
+  lowConfidence?: boolean;
 }
 
 async function addColesProductAsOptionCore(
@@ -240,6 +259,7 @@ async function addColesProductAsOptionCore(
       source: "COLES_SCRAPE",
       colesProductId: input.colesProductId ?? undefined,
       sourceUrl: input.sourceUrl ?? undefined,
+      lowConfidence: input.lowConfidence ?? false,
     },
   });
 
@@ -311,7 +331,15 @@ export async function runPriceItem(
 
   const { checkColesBulkRefreshRateLimit } = await import("@/lib/ratelimit");
   if (!checkColesBulkRefreshRateLimit(userId)) {
-    return { ok: false, kind: target.kind, reason: "Rate limited", cached: false, apiFailure: true };
+    // Our own pacing limit, not a Coles outage — don't count it toward the
+    // "Coles isn't responding" breaker.
+    return {
+      ok: false,
+      kind: target.kind,
+      reason: "Slowing down to avoid Coles' bot defense — try again shortly.",
+      cached: false,
+      apiFailure: false,
+    };
   }
 
   try {
@@ -326,21 +354,24 @@ export async function runPriceItem(
             kind: "refresh",
             reason: result.option.lastRefreshError ?? "Not found",
             cached: result.cached,
-            apiFailure: true,
+            apiFailure: result.error,
           };
     }
 
     const { getCachedColesResults } = await import("@/lib/scrape/coles-cache");
-    const { products, cached } = await getCachedColesResults(userId, target.name);
+    const { products, cached, error } = await getCachedColesResults(userId, target.name);
     if (products.length === 0) {
-      return { ok: false, kind: "discover", reason: "not_found", cached, apiFailure: true };
+      // A cached or live "genuinely zero results" isn't an outage signal — only
+      // a real scrape/parse throw should count toward the breaker.
+      return { ok: false, kind: "discover", reason: "not_found", cached, apiFailure: error };
     }
 
     const { pickRecommendedColesProduct } = await import("@/lib/pricing/recommend");
-    const match = pickRecommendedColesProduct(target.name, products);
-    if (!match) {
+    const recommended = pickRecommendedColesProduct(target.name, products);
+    if (!recommended) {
       return { ok: false, kind: "discover", reason: "not_found", cached, apiFailure: false };
     }
+    const match = recommended.product;
 
     await addColesProductAsOptionCore(
       userId,
@@ -352,6 +383,7 @@ export async function runPriceItem(
         priceCents: match.priceCents as number,
         colesProductId: match.productId,
         sourceUrl: match.productUrl,
+        lowConfidence: recommended.confidence === "low",
       },
       { revalidate: false }
     );
@@ -418,6 +450,7 @@ export interface PantryIngredientRow {
   productOptionId: string | null;
   source: ProductOptionSource | null;
   lastRefreshError: string | null;
+  lowConfidence: boolean;
 }
 
 /** All of the user's catalog ingredients, grouped by category, for the Pantry screen. */
@@ -445,6 +478,7 @@ export async function getPantryIngredients(): Promise<Record<string, PantryIngre
       productOptionId: option?.id ?? null,
       source: option?.source ?? null,
       lastRefreshError: option?.lastRefreshError ?? null,
+      lowConfidence: option?.lowConfidence ?? false,
     };
   });
 

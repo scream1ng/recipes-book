@@ -17,7 +17,7 @@ cp .env.example .env          # fill in GEMINI_API_KEY, AUTH_SECRET at minimum
 npx prisma migrate dev        # also enables pg_trgm (catalog autocomplete)
 npm run dev
 npm run lint                  # eslint
-npm test                      # vitest run — src/lib/units + src/lib/pricing only
+npm test                      # vitest run — no include restriction in vitest.config.ts; in practice src/lib/units, src/lib/pricing, src/lib/scrape
 npx vitest run path/to/file.test.ts   # single test file
 npx vitest run -t "test name"          # single test by name
 npm run build
@@ -48,7 +48,7 @@ Shopping list math (`src/lib/actions/list.ts`) aggregates `qtyCanonical * orderQ
 
 ### Canonical units
 
-`src/lib/units/dimensional.ts` converts within a physical dimension to a base unit (grams for mass, ml for volume; Australian conventions — 1 cup = 250ml, 1 tbsp = 20ml, 1 tsp = 5ml). `normalize.ts` builds on that for cross-dimension conversion (e.g. "1 cup flour" → grams), which requires a per-ingredient density (`gramsPerMl`/`gramsPerCount`/`gramsPerBunch` on `CatalogIngredient`) — without it, `qtyCanonical` is null and the line is flagged `needsReview`. This is the only unit-tested part of the app that has no external dependency (`src/lib/units/__tests__`, `src/lib/pricing/__tests__`).
+`src/lib/units/dimensional.ts` converts within a physical dimension to a base unit (grams for mass, ml for volume; Australian conventions — 1 cup = 250ml, 1 tbsp = 20ml, 1 tsp = 5ml). `normalize.ts` builds on that for cross-dimension conversion (e.g. "1 cup flour" → grams), which requires a per-ingredient density (`gramsPerMl`/`gramsPerCount`/`gramsPerBunch` on `CatalogIngredient`) — without it, `qtyCanonical` is null and the line is flagged `needsReview`. This was originally the only unit-tested part of the app with no external dependency (`src/lib/units/__tests__`, `src/lib/pricing/__tests__`); `src/lib/scrape/__tests__` now also covers the `__NEXT_DATA__` parser (pure) and the Coles fetch/cache layer (fetch + Prisma mocked) against captured fixture HTML. Any file importing `"server-only"` needs the `server-only` → stub alias in `vitest.config.ts` to be test-importable (Next resolves the real one via its own bundled copy at build time; plain Node/vitest can't see it).
 
 ### Pricing
 
@@ -68,7 +68,7 @@ There is no manual/blank-recipe entry point — pasting text *is* the manual-ent
 
 ### Coles integration
 
-`src/lib/scrape/coles.ts` fetches Coles search results HTML and hands it to Gemini (`coles-html-parse.ts` prompt) to extract structured products — Coles' markup isn't scraped with a traditional parser, it's summarized by the model. `coles-cache.ts` wraps this in a 24h DB cache (`ColesSearchCache`, keyed by normalized query string) shared by `/api/coles/search` (autocomplete + swap sheet) — on fetch/parse failure it returns an empty array rather than throwing, so price fields are just left blank rather than blocking the UI.
+`src/lib/scrape/coles.ts` fetches the Coles search results page with a full browser header set (Coles' Imperva/Incapsula bot defense blocks requests missing `Accept-Language`/`sec-ch-ua*`/`Sec-Fetch-*`, even with a correct User-Agent) and parses the `__NEXT_DATA__` JSON the page embeds directly (`coles-next-data.ts`, pure/no LLM) — deterministic, no Gemini call on this path. A detected block page (`"Pardon Our Interruption"`) throws rather than being treated as zero results. Fetches are serialized and paced through a module-level queue (spacing + jitter + a cooldown after a detected block) — this app is single-user/single-instance, so that's sufficient; burst requests trip the block even with correct headers. `coles-cache.ts` wraps this in a 24h DB cache (`ColesSearchCache`, keyed by normalized query string) shared by `/api/coles/search` (autocomplete + swap sheet) — on failure it serves an expired cache row if one exists (stale price beats no price), never overwrites a good row with a failure, and only returns an empty array if there's truly nothing cached. `pickRecommendedColesProduct` (`src/lib/pricing/recommend.ts`) auto-picks a confident match when candidates agree, or a low-confidence ballpark (median unit price, not cheapest, to avoid systematically understating cost) when they don't — flagged via `ProductOption.lowConfidence` and shown as "check price" everywhere that price appears (pantry, order, list, swap sheet). The Gemini HTML-parse path (`coles-html-parse.ts` prompt, `html-trim.ts`) is no longer on the hot path — `trimHtmlForParsing` strips `<script>` tags, so it structurally can't see `__NEXT_DATA__` and isn't a fallback for it.
 
 ### Mutations: server actions vs API routes
 
