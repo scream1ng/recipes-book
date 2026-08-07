@@ -3,12 +3,9 @@ import { prisma } from "@/lib/db";
 import { searchColesProducts } from "./coles";
 import type { FetchPriority } from "./coles";
 import type { ColesProduct } from "@/lib/gemini/schemas";
+import { normalizeQueryKey } from "./coles-next-data";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-
-function normalizeQueryKey(query: string): string {
-  return query.trim().toLowerCase().replace(/\s+/g, " ");
-}
 
 export interface CachedColesResult {
   products: ColesProduct[];

@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "prisma migrate deploy && next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "list-price-targets": "tsx --env-file=.env.production.local --tsconfig tsconfig.scripts.json scripts/list-price-targets.ts",
+    "seed-coles-cache": "tsx --env-file=.env.production.local --tsconfig tsconfig.scripts.json scripts/seed-coles-cache.ts",
+    "apply-coles-prices": "tsx --env-file=.env.production.local --tsconfig tsconfig.scripts.json scripts/apply-coles-prices.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
@@ -32,6 +35,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "tailwindcss": "^4",
+    "tsx": "^4.19.2",
     "typescript": "^5",
     "vitest": "^4.1.10"
   }

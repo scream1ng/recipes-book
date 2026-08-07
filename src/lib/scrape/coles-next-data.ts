@@ -54,6 +54,13 @@ const nextDataSchema = z
 
 const NEXT_DATA_RE = /<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/;
 
+/** Canonical form of a Coles search query — shared by everything that reads
+ *  or writes ColesSearchCache (coles-cache.ts, seed-coles-cache.ts,
+ *  list-price-targets.ts) so "Sugar" and "sugar " land on the same row. */
+export function normalizeQueryKey(query: string): string {
+  return query.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 /** Extracts and validates the `__NEXT_DATA__` payload from a Coles page. Returns
  *  null only when the script tag itself is absent (not present on this page /
  *  blocked page) — a present-but-malformed payload throws, since that means
