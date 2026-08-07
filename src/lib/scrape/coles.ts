@@ -83,10 +83,14 @@ function scheduleFetch<T>(fn: () => Promise<T>, priority: FetchPriority): Promis
     // Chained off a promise that always resolves — one call's failure must
     // never wedge every later-queued fetch behind it.
     queueTail = prevTail.then(async () => {
+      // Checked outside the try below on purpose — rejecting here must not
+      // hit the catch's "extend the cooldown" branch, or any traffic arriving
+      // during an active cooldown keeps re-extending it and it never elapses.
+      if (Date.now() < blockedUntil) {
+        reject(new ColesBlockedError("Coles is temporarily blocking requests — try again later."));
+        return;
+      }
       try {
-        if (Date.now() < blockedUntil) {
-          throw new ColesBlockedError("Coles is temporarily blocking requests — try again later.");
-        }
         const [base, jitter] =
           priority === "bulk" ? [BULK_MIN_GAP_MS, BULK_JITTER_MS] : [INTERACTIVE_MIN_GAP_MS, INTERACTIVE_JITTER_MS];
         const minGap = base + Math.random() * jitter;

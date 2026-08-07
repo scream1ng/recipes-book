@@ -158,7 +158,7 @@ export function SwapSheet({
         role="dialog"
         aria-modal="true"
         aria-label={`${title ?? "Swap"}: ${displayName}`}
-        className={`max-h-[80vh] w-full overflow-y-auto rounded-t-3xl bg-(--color-surface) pb-5 ${
+        className={`max-h-[80vh] w-full overflow-x-hidden overflow-y-auto rounded-t-3xl bg-(--color-surface) pb-5 ${
           closing ? "" : "motion-safe:animate-[sheet-up_.25s_ease-out]"
         } ${dragging ? "" : "transition-transform duration-200"}`}
         style={{ transform: closing ? "translateY(100%)" : `translateY(${dragY}px)` }}
