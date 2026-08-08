@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateRecipe, type RecipeIngredientDraft } from "@/lib/actions/recipes";
 import { findOrCreateCatalogIngredient } from "@/lib/actions/catalog";
@@ -11,8 +11,12 @@ import { BackLink } from "@/components/ui/BackLink";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ListGroup, ListRow, ListDivider } from "@/components/ui/ListGroup";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
+import { SwipeRow } from "@/components/ui/SwipeRow";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface EditLine {
+  /** Stable across reorders/removals so React keeps each row's DOM node (and focus) with its own line. */
+  uid: string;
   catalogIngredientId: string | null;
   initialName: string;
   name: string;
@@ -46,7 +50,8 @@ export function RecipeEditForm({ recipe }: { recipe: RecipeEditData }) {
   const [name, setName] = useState(recipe.name);
   const [baseServes, setBaseServes] = useState(recipe.baseServes);
   const [lines, setLines] = useState<EditLine[]>(
-    recipe.ingredients.map((ing) => ({
+    recipe.ingredients.map((ing, i) => ({
+      uid: `l${i}`,
       catalogIngredientId: ing.catalogIngredientId,
       initialName: ing.displayName,
       name: ing.displayName,
@@ -58,14 +63,22 @@ export function RecipeEditForm({ recipe }: { recipe: RecipeEditData }) {
       excludeFromCost: ing.excludeFromCost,
     }))
   );
-  const [method, setMethod] = useState<string[]>(recipe.methodSteps);
+  const [method, setMethod] = useState<{ uid: string; text: string }[]>(
+    recipe.methodSteps.map((text, i) => ({ uid: `m${i}`, text }))
+  );
+  /** Counter for uids of rows added after mount; keeps them unique against the initial `l0`/`m0` set. */
+  const nextUid = useRef(Math.max(recipe.ingredients.length, recipe.methodSteps.length));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<
+    { type: "ingredient"; index: number } | { type: "method"; index: number } | null
+  >(null);
 
   function addLine() {
     setLines((prev) => [
       ...prev,
       {
+        uid: `l${nextUid.current++}`,
         catalogIngredientId: null,
         initialName: "",
         name: "",
@@ -100,7 +113,7 @@ export function RecipeEditForm({ recipe }: { recipe: RecipeEditData }) {
   }
 
   function updateMethodStep(index: number, value: string) {
-    setMethod((prev) => prev.map((s, i) => (i === index ? value : s)));
+    setMethod((prev) => prev.map((s, i) => (i === index ? { ...s, text: value } : s)));
   }
 
   function removeMethodStep(index: number) {
@@ -108,7 +121,14 @@ export function RecipeEditForm({ recipe }: { recipe: RecipeEditData }) {
   }
 
   function addMethodStep() {
-    setMethod((prev) => [...prev, ""]);
+    setMethod((prev) => [...prev, { uid: `m${nextUid.current++}`, text: "" }]);
+  }
+
+  function confirmRemove() {
+    if (!confirmTarget) return;
+    if (confirmTarget.type === "ingredient") removeLine(confirmTarget.index);
+    else removeMethodStep(confirmTarget.index);
+    setConfirmTarget(null);
   }
 
   async function handleSave() {
@@ -147,7 +167,7 @@ export function RecipeEditForm({ recipe }: { recipe: RecipeEditData }) {
         name: name.trim() || recipe.name,
         baseServes,
         ingredients,
-        methodSteps: method.map((s) => s.trim()).filter((s) => s !== ""),
+        methodSteps: method.map((s) => s.text.trim()).filter((s) => s !== ""),
       });
 
       router.push(`/recipes/${recipe.id}`);
@@ -200,43 +220,37 @@ export function RecipeEditForm({ recipe }: { recipe: RecipeEditData }) {
       <SectionHeader>Ingredients</SectionHeader>
       <ListGroup>
         {lines.map((line, i) => (
-          <div key={i}>
+          <div key={line.uid}>
             {i > 0 && <ListDivider />}
-            <ListRow className="items-start">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-baseline gap-x-1.5 text-[15px]">
-                  <input
-                    value={line.name}
-                    onChange={(e) => updateLine(i, { name: e.target.value })}
-                    placeholder="Ingredient"
-                    className="min-w-[4rem] flex-1 bg-transparent font-medium outline-none"
-                  />
-                  <span className="text-(--color-ink-muted)">×</span>
-                  <input
-                    type="number"
-                    value={line.amount ?? ""}
-                    onChange={(e) =>
-                      updateLine(i, { amount: e.target.value === "" ? null : Number(e.target.value) })
-                    }
-                    placeholder="0"
-                    className="w-14 bg-transparent text-(--color-ink-muted) outline-none"
-                  />
-                  <input
-                    value={line.unit ?? ""}
-                    onChange={(e) => updateLine(i, { unit: e.target.value })}
-                    className="w-12 bg-transparent text-(--color-ink-muted) outline-none"
-                  />
+            <SwipeRow onDelete={() => setConfirmTarget({ type: "ingredient", index: i })}>
+              <ListRow className="items-start">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-1.5 text-[15px]">
+                    <input
+                      value={line.name}
+                      onChange={(e) => updateLine(i, { name: e.target.value })}
+                      placeholder="Ingredient"
+                      className="min-w-[4rem] flex-1 bg-transparent font-medium outline-none"
+                    />
+                    <span className="text-(--color-ink-muted)">×</span>
+                    <input
+                      type="number"
+                      value={line.amount ?? ""}
+                      onChange={(e) =>
+                        updateLine(i, { amount: e.target.value === "" ? null : Number(e.target.value) })
+                      }
+                      placeholder="0"
+                      className="w-14 bg-transparent text-(--color-ink-muted) outline-none"
+                    />
+                    <input
+                      value={line.unit ?? ""}
+                      onChange={(e) => updateLine(i, { unit: e.target.value })}
+                      className="w-12 bg-transparent text-(--color-ink-muted) outline-none"
+                    />
+                  </div>
                 </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => removeLine(i)}
-                aria-label={`Remove ${line.name || "ingredient"}`}
-                className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center text-(--color-accent-dark) active:opacity-60"
-              >
-                <span aria-hidden className="text-[22px] leading-none">&minus;</span>
-              </button>
-            </ListRow>
+              </ListRow>
+            </SwipeRow>
           </div>
         ))}
         <ListDivider />
@@ -263,25 +277,19 @@ export function RecipeEditForm({ recipe }: { recipe: RecipeEditData }) {
           </ListRow>
         ) : (
           method.map((step, i) => (
-            <div key={i}>
+            <div key={step.uid}>
               {i > 0 && <ListDivider />}
-              <ListRow>
-                <span className="shrink-0 text-sm text-(--color-ink-muted)">{i + 1}.</span>
-                <input
-                  value={step}
-                  onChange={(e) => updateMethodStep(i, e.target.value)}
-                  placeholder="Step description"
-                  className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeMethodStep(i)}
-                  aria-label={`Remove step ${i + 1}`}
-                  className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center text-(--color-accent-dark) active:opacity-60"
-                >
-                  <span aria-hidden className="text-[22px] leading-none">&minus;</span>
-                </button>
-              </ListRow>
+              <SwipeRow onDelete={() => setConfirmTarget({ type: "method", index: i })}>
+                <ListRow>
+                  <span className="shrink-0 text-sm text-(--color-ink-muted)">{i + 1}.</span>
+                  <input
+                    value={step.text}
+                    onChange={(e) => updateMethodStep(i, e.target.value)}
+                    placeholder="Step description"
+                    className="min-w-0 flex-1 bg-transparent text-base outline-none"
+                  />
+                </ListRow>
+              </SwipeRow>
             </div>
           ))
         )}
@@ -313,6 +321,18 @@ export function RecipeEditForm({ recipe }: { recipe: RecipeEditData }) {
           {saving ? "Saving…" : "Save changes"}
         </button>
       </StickyActionBar>
+
+      {confirmTarget && (
+        <ConfirmDialog
+          title={
+            confirmTarget.type === "ingredient"
+              ? `Remove ${lines[confirmTarget.index]?.name || "ingredient"}?`
+              : `Remove step ${confirmTarget.index + 1}?`
+          }
+          onConfirm={confirmRemove}
+          onCancel={() => setConfirmTarget(null)}
+        />
+      )}
     </>
   );
 }

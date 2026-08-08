@@ -207,25 +207,29 @@ export function SwapSheet({
             {stored.length > 0 && <SectionHeader>Your prices</SectionHeader>}
             <ul className="flex flex-col divide-y divide-(--color-border)">
               {stored.map((opt) => (
-                <li key={opt.id} className="flex items-center">
+                <li key={opt.id} className="flex items-stretch">
                   <button
                     type="button"
                     disabled={isPending}
                     onClick={() => select(opt.id)}
-                    className={`flex min-h-[48px] flex-1 items-center gap-3 px-4 py-2 text-left active:bg-(--color-surface-alt) ${
+                    className={`flex min-h-[48px] flex-1 items-start gap-3 px-4 py-2.5 text-left active:bg-(--color-surface-alt) ${
                       opt.isCurrent ? "bg-(--color-surface-alt)" : ""
                     }`}
                   >
-                    <StoreBadge store={opt.store} />
-                    <span className="min-w-0 flex-1 truncate">
-                      {opt.productName}{" "}
-                      <span className="text-(--color-ink-muted)">({opt.packLabel})</span>
-                      {opt.isStale && (
-                        <span className="ml-2 text-xs text-(--color-accent-dark)">stale price</span>
-                      )}
-                      {opt.lowConfidence && (
-                        <span className="ml-2 text-xs text-(--color-accent-dark)">check price</span>
-                      )}
+                    <span className="shrink-0 pt-0.5">
+                      <StoreBadge store={opt.store} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="line-clamp-2">{opt.productName}</span>
+                      <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-(--color-ink-muted)">
+                        {opt.packLabel && <span>{opt.packLabel}</span>}
+                        {opt.isStale && (
+                          <span className="text-(--color-accent-dark)">stale price</span>
+                        )}
+                        {opt.lowConfidence && (
+                          <span className="text-(--color-accent-dark)">check price</span>
+                        )}
+                      </span>
                       {opt.lastRefreshError && (
                         <span className="mt-0.5 block text-xs text-(--color-accent-dark)">
                           {opt.lastRefreshError}
@@ -242,7 +246,7 @@ export function SwapSheet({
                       disabled={isPending}
                       onClick={() => refresh(opt.id)}
                       aria-label="Refresh price"
-                      className="flex h-11 w-11 shrink-0 items-center justify-center text-(--color-accent) active:opacity-60"
+                      className="flex h-11 w-11 shrink-0 self-center items-center justify-center text-(--color-accent) active:opacity-60"
                     >
                       {refreshingId === opt.id && isPending ? (
                         <Spinner size={16} />
@@ -263,12 +267,18 @@ export function SwapSheet({
                     type="button"
                     disabled={isPending || product.priceCents == null}
                     onClick={() => selectLive(product)}
-                    className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left active:bg-(--color-surface-alt) disabled:opacity-50"
+                    className="flex min-h-[48px] w-full items-start gap-3 px-4 py-2.5 text-left active:bg-(--color-surface-alt) disabled:opacity-50"
                   >
-                    <StoreBadge store="COLES" />
-                    <span className="min-w-0 flex-1 truncate">
-                      {product.name}{" "}
-                      <span className="text-(--color-ink-muted)">({product.packLabel})</span>
+                    <span className="shrink-0 pt-0.5">
+                      <StoreBadge store="COLES" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="line-clamp-2">{product.name}</span>
+                      {product.packLabel && (
+                        <span className="mt-0.5 block text-xs text-(--color-ink-muted)">
+                          {product.packLabel}
+                        </span>
+                      )}
                     </span>
                     <span className="shrink-0 tabular-nums font-medium">
                       {product.priceCents != null ? centsToDisplay(product.priceCents) : "—"}
