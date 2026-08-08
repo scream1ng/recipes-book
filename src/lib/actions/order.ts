@@ -88,7 +88,7 @@ export async function getOrderIngredientList() {
   const totals = new Map<string, number>();
   for (const recipe of recipes) {
     for (const ing of recipe.ingredients) {
-      if (!ing.catalogIngredientId || ing.qtyCanonical == null) continue;
+      if (!ing.catalogIngredientId || ing.qtyCanonical == null || ing.excludeFromCost) continue;
       const needed = scaleQty(ing.qtyCanonical, 1, recipe.orderQty);
       totals.set(ing.catalogIngredientId, (totals.get(ing.catalogIngredientId) ?? 0) + needed);
     }
