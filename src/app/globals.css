@@ -55,6 +55,16 @@ body {
   font-family: var(--font-newsreader), Georgia, serif;
 }
 
+/* iOS Safari auto-zooms the viewport on focus if an input's font-size is under 16px.
+   Layered so text-* utilities still win — any input needing a size must set one >= 16px. */
+@layer base {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* Press feedback for filled primary buttons app-wide, regardless of file. */
 [class*="bg-(--color-accent)"]:not(:disabled):active {
   opacity: 0.7;
